@@ -9,6 +9,8 @@ use Bileto\Event\EventPostType;
 use Bileto\Install\Schema;
 use Bileto\Product\TicketProduct;
 use Bileto\Tax\EventVat;
+use Bileto\Ticket\TicketRepository;
+use Bileto\Ticket\TicketService;
 
 defined('ABSPATH') || exit;
 
@@ -33,8 +35,12 @@ final class Plugin
 
     private function __construct()
     {
+        $tickets = new TicketRepository();
+        $service = new TicketService($tickets);
+
         $this->services = [
             new EventPostType(),
+            $service,
             new TicketProduct(),
             new EventVat(),
         ];
