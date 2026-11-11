@@ -51,6 +51,10 @@ add_action('plugins_loaded', static function (): void {
         return;
     }
 
+    if (! class_exists(\Bileto\Vendor\chillerlan\QRCode\QRCode::class)) {
+        return;
+    }
+
     add_action('init', static function (): void {
         Plugin::instance()->boot();
     }, 0);

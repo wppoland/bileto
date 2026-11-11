@@ -1,7 +1,8 @@
 <?php
 /**
- * Uninstall routine. Ticket data is removed only when the site owner opted
- * in with the "delete data on uninstall" setting: tickets are sales records.
+ * Uninstall routine. Tickets are sales records, so they are removed only when
+ * the site owner opted in by setting the `bileto_delete_data` option to "yes".
+ * Options, the Check-in role and its capability are always removed.
  *
  * @package Bileto
  */
@@ -11,18 +12,31 @@ declare(strict_types=1);
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 /**
- * Remove this plugin's options from the current site, if the owner opted in.
+ * Clean up the current site.
  */
 function bileto_uninstall_site(): void {
-	$bileto_settings = get_option( 'bileto_settings', array() );
-	if ( ! is_array( $bileto_settings ) || empty( $bileto_settings['delete_data'] ) ) {
-		return;
+	global $wpdb;
+
+	if ( get_option( 'bileto_delete_data' ) === 'yes' ) {
+		foreach ( array( 'bileto_tickets', 'bileto_transfers', 'bileto_checkins' ) as $bileto_table ) {
+			$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . $bileto_table ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery -- fixed table names.
+		}
+		wp_delete_post( (int) get_option( 'bileto_page_id' ), true );
 	}
 
-	delete_option( 'bileto_settings' );
+	foreach ( array( 'bileto_db_version', 'bileto_page_id', 'bileto_delete_data' ) as $bileto_option ) {
+		delete_option( $bileto_option );
+	}
+	remove_role( 'bileto_checkin' );
+	foreach ( array( 'administrator', 'shop_manager' ) as $bileto_role ) {
+		$bileto_role_object = get_role( $bileto_role );
+		if ( $bileto_role_object ) {
+			$bileto_role_object->remove_cap( 'bileto_checkin' );
+		}
+	}
 }
 
-// Options are per site, so a network uninstall has to visit every site.
+// Data is per site, so a network uninstall has to visit every site.
 if ( is_multisite() ) {
 	$bileto_site_ids = get_sites(
 		array(

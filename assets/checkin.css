@@ -1,0 +1,24 @@
+.bileto-checkin { max-width: 640px; }
+.bileto-checkin__count { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.bileto-checkin__camera { position: relative; margin: 1rem 0; }
+.bileto-checkin__camera video { display: none; width: 100%; max-height: 60vh; object-fit: cover; background: #000; }
+.bileto-checkin.is-scanning video { display: block; }
+.bileto-checkin__search { display: grid; gap: 0.25rem; margin: 1rem 0; }
+.bileto-checkin__search input { font-size: 1.125rem; padding: 0.5rem 0.75rem; }
+.bileto-checkin__results { margin: 0; }
+.bileto-checkin__row { width: 100%; text-align: start; padding: 0.75rem; font-size: 1rem; background: #fff; border: 1px solid #dcdcde; cursor: pointer; }
+.bileto-checkin__row:active { transform: scale(0.98); }
+.bileto-checkin__row:disabled { opacity: 0.5; text-decoration: line-through; }
+.bileto-checkin__result {
+	position: fixed; inset: 0; z-index: 100000;
+	display: grid; place-content: center; text-align: center; padding: 2rem;
+	color: #fff; cursor: pointer;
+	transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+	@starting-style { opacity: 0; }
+}
+.bileto-checkin__result[hidden] { display: none; }
+.bileto-checkin__result[data-state="ok"] { background: #15803d; }
+.bileto-checkin__result[data-state="error"] { background: #b91c1c; }
+.bileto-checkin__status { font-size: 2.5rem; font-weight: 700; margin: 0; }
+.bileto-checkin__name { font-size: 1.75rem; margin: 0.5rem 0 0; }
+.bileto-checkin__detail { font-size: 1.125rem; margin: 0.5rem 0 0; }
