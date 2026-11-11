@@ -21,61 +21,107 @@ final class TicketService implements HasHooks
 
     public function registerHooks(): void
     {
-        add_action('woocommerce_order_status_processing', [$this, 'issueForOrder']);
-        add_action('woocommerce_order_status_completed', [$this, 'issueForOrder']);
-        foreach (['cancelled', 'refunded', 'failed'] as $status) {
-            add_action('woocommerce_order_status_' . $status, [$this, 'cancelForOrder']);
-        }
+        add_action('woocommerce_order_status_changed', [$this, 'sync']);
+        add_action('woocommerce_order_partially_refunded', [$this, 'sync']);
+        add_action('woocommerce_order_fully_refunded', [$this, 'sync']);
+        add_action('woocommerce_saved_order_items', [$this, 'sync']);
+        add_action('woocommerce_refund_deleted', [$this, 'syncAfterRefundDeleted'], 10, 2);
         add_action('woocommerce_before_delete_order', [$this, 'cancelForOrder']);
         add_action('woocommerce_trash_order', [$this, 'cancelForOrder']);
     }
 
     /**
-     * Issues the missing tickets of a paid order. An order that was cancelled
-     * and is paid again gets its tickets back.
+     * Makes the tickets of an order match it: one valid seat per paid unit
+     * that was not refunded. Missing seats are issued, refunded or removed
+     * seats are cancelled (unassigned ones first), restored seats come back.
+     *
+     * Gateways that refund asynchronously keep their own statuses while the
+     * refund is pending or after it failed; refunds do not count then.
+     * PlanetPay's statuses are the default (filter `bileto_refund_pending_statuses`).
+     *
+     * @param int|string $orderId
      */
-    public function issueForOrder(int $orderId): void
+    public function sync($orderId): void
     {
-        $order = wc_get_order($orderId);
-        if (! $order instanceof \WC_Order) {
+        $order = wc_get_order((int) $orderId);
+        if (! $order instanceof \WC_Order || $order instanceof \WC_Order_Refund) {
             return;
         }
-        $existing = $this->repo->forOrder($orderId);
-        if ($existing !== [] && $existing[0]['status'] === 'cancelled') {
-            $this->repo->setStatusForOrder($orderId, 'valid');
+        $status  = $order->get_status();
+        $pending = (array) apply_filters('bileto_refund_pending_statuses', ['requested-status', 'rejected-status'], $order);
+        if (in_array($status, ['cancelled', 'failed', 'refunded', 'trash'], true)) {
+            $this->cancelForOrder($order->get_id());
+
+            return;
         }
-        $buyerHasTicket = $existing !== [];
-        $issued         = [];
+        // Any other status after payment counts as paid, including gateways' own refund statuses.
+        if (in_array($status, (array) apply_filters('bileto_unpaid_statuses', ['pending', 'on-hold', 'checkout-draft'], $order), true)) {
+            return;
+        }
+        $countRefunds = ! in_array($status, $pending, true);
+        $issued       = [];
+        $buyerHas     = $this->repo->forOrder($order->get_id()) !== [];
 
         foreach ($order->get_items() as $itemId => $item) {
             $product = $item instanceof \WC_Order_Item_Product ? $item->get_product() : null;
             if (! $product instanceof \WC_Product || TicketProduct::eventId($product) === 0) {
                 continue;
             }
-            $have = $this->repo->countForItem((int) $itemId);
-            for ($seat = $have; $seat < (int) $item->get_quantity(); $seat++) {
-                $holder = $buyerHasTicket ? [] : [
+            $qty   = (int) $item->get_quantity();
+            $seats = $qty - ($countRefunds ? abs((int) $order->get_qty_refunded_for_item((int) $itemId)) : 0);
+
+            for ($seat = $this->repo->countForItem((int) $itemId); $seat < $qty; $seat++) {
+                $holder = $buyerHas ? [] : [
                     'first_name' => $order->get_billing_first_name(),
                     'last_name'  => $order->get_billing_last_name(),
                     'email'      => $order->get_billing_email(),
                     'company'    => $order->get_billing_company(),
                 ];
                 $id = $this->repo->create($holder + [
-                    'order_id'      => $orderId,
+                    'order_id'      => $order->get_id(),
                     'order_item_id' => (int) $itemId,
                     'seat'          => $seat,
                     'product_id'    => $product->get_id(),
                     'event_id'      => TicketProduct::eventId($product),
                 ]);
                 if ($id > 0) {
-                    $buyerHasTicket = true;
-                    $issued[]       = $id;
+                    $buyerHas = true;
+                    $issued[] = $id;
                 }
             }
+            $this->applySeatCount($this->repo->forItem((int) $itemId), max(0, $seats));
         }
 
         foreach ($issued as $ticketId) {
-            do_action('bileto_issued', $ticketId, $orderId);
+            if (($this->repo->find($ticketId)['status'] ?? '') === 'valid') {
+                do_action('bileto_issued', $ticketId, $order->get_id());
+            }
+        }
+    }
+
+    /**
+     * @param int|string $refundId
+     * @param int|string $orderId
+     */
+    public function syncAfterRefundDeleted($refundId, $orderId): void
+    {
+        $this->sync($orderId);
+    }
+
+    /**
+     * Keeps $valid seats valid: assigned seats are kept before empty ones,
+     * lower seat numbers before higher.
+     *
+     * @param list<array<string, string>> $tickets
+     */
+    private function applySeatCount(array $tickets, int $valid): void
+    {
+        usort($tickets, static fn (array $a, array $b): int => [$a['email'] === '', (int) $a['seat']] <=> [$b['email'] === '', (int) $b['seat']]);
+        foreach ($tickets as $i => $ticket) {
+            $status = $i < $valid ? 'valid' : 'cancelled';
+            if ($ticket['status'] !== $status) {
+                $this->repo->update((int) $ticket['id'], ['status' => $status]);
+            }
         }
     }
 

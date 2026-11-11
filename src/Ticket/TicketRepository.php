@@ -92,6 +92,14 @@ final class TicketRepository
         return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$this->tickets} WHERE order_id = %d ORDER BY id", $orderId), ARRAY_A) ?: [];
     }
 
+    /** @return list<Ticket> */
+    public function forItem(int $itemId): array
+    {
+        global $wpdb;
+
+        return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$this->tickets} WHERE order_item_id = %d ORDER BY seat", $itemId), ARRAY_A) ?: [];
+    }
+
     public function countForItem(int $itemId): int
     {
         global $wpdb;
