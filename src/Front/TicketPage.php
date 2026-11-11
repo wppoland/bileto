@@ -185,7 +185,7 @@ final class TicketPage implements HasHooks
                     <p class="bileto-ticket__meta"><?php echo esc_html($ticket['company']); ?></p>
                 <?php endif; ?>
                 <p class="bileto-ticket__hint"><?php esc_html_e('Show this QR code at the entrance, on your phone or printed.', 'bileto'); ?></p>
-                <button type="button" class="bileto-button bileto-button--ghost" onclick="window.print()"><?php esc_html_e('Print Ticket', 'bileto'); ?></button>
+                <button type="button" class="wp-element-button bileto-button bileto-button--ghost" onclick="window.print()"><?php esc_html_e('Print Ticket', 'bileto'); ?></button>
             </div>
         </article>
         <?php if ($ticket['status'] === 'valid') : ?>
@@ -265,7 +265,7 @@ final class TicketPage implements HasHooks
                 <label for="<?php echo esc_attr($id); ?>-company"><?php esc_html_e('Company (optional)', 'bileto'); ?></label>
                 <input id="<?php echo esc_attr($id); ?>-company" name="company" autocomplete="organization">
             </div>
-            <button type="submit" class="bileto-button"><?php echo esc_html($label); ?></button>
+            <button type="submit" class="wp-element-button bileto-button"><?php echo esc_html($label); ?></button>
         </form>
         <?php
         return (string) ob_get_clean();
