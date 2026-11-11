@@ -129,4 +129,54 @@ final class EventPostType implements HasHooks
     {
         return trim((string) get_post_meta($eventId, '_bileto_venue', true) . ', ' . (string) get_post_meta($eventId, '_bileto_address', true), ', ');
     }
+
+    /** The event chosen in `?event=`, or the next one to start (the latest past one if none is ahead). */
+    public static function selected(): int
+    {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen filter.
+        $chosen = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        if ($chosen > 0 && get_post_type($chosen) === self::POST_TYPE) {
+            return $chosen;
+        }
+        $today = wp_date('Y-m-d');
+        foreach ([['>=', 'ASC'], ['<', 'DESC']] as [$compare, $order]) {
+            $ids = get_posts([
+                'post_type'   => self::POST_TYPE,
+                'numberposts' => 1,
+                'fields'      => 'ids',
+                'meta_key'    => '_bileto_start', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_query_meta_key -- a handful of events.
+                'orderby'     => 'meta_value',
+                'order'       => $order,
+                'meta_query'  => [['key' => '_bileto_start', 'value' => $today, 'compare' => $compare]], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_query_meta_query
+            ]);
+            if ($ids !== []) {
+                return (int) $ids[0];
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Event switcher for an admin screen: reloads it with `?event=`.
+     *
+     * @param array<string, string> $query The screen's own query args (page, post_type).
+     */
+    public static function picker(int $eventId, array $query): void
+    {
+        $events = get_posts(['post_type' => self::POST_TYPE, 'numberposts' => 50, 'post_status' => 'publish']);
+        ?>
+        <form method="get" class="bileto-event-picker">
+            <?php foreach ($query as $name => $value) : ?>
+                <input type="hidden" name="<?php echo esc_attr($name); ?>" value="<?php echo esc_attr($value); ?>">
+            <?php endforeach; ?>
+            <label for="bileto-event"><?php esc_html_e('Event', 'bileto'); ?></label>
+            <select id="bileto-event" name="event" onchange="this.form.submit()">
+                <?php foreach ($events as $event) : ?>
+                    <option value="<?php echo esc_attr((string) $event->ID); ?>" <?php selected($eventId, $event->ID); ?>><?php echo esc_html($event->post_title); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </form>
+        <?php
+    }
 }

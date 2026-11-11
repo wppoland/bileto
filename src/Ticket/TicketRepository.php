@@ -129,6 +129,21 @@ final class TicketRepository
         ), ARRAY_A) ?: [];
     }
 
+    /**
+     * Every ticket of an event with its first check-in (GMT, any day), for the admin list and export.
+     *
+     * @return list<array<string, string|null>>
+     */
+    public function forEvent(int $eventId): array
+    {
+        global $wpdb;
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT t.id, t.order_id, t.first_name, t.last_name, t.email, t.company, t.status, (SELECT MIN(c.created_at) FROM {$this->checkins} c WHERE c.ticket_id = t.id) AS checked_in FROM {$this->tickets} t WHERE t.event_id = %d ORDER BY t.last_name, t.first_name, t.id",
+            $eventId
+        ), ARRAY_A) ?: [];
+    }
+
     public function logTransfer(int $ticketId, string $from, string $to, int $userId): void
     {
         global $wpdb;
