@@ -39,6 +39,13 @@ final class TicketProduct implements HasHooks
         return $parent instanceof \WC_Product && $parent->get_meta(self::IS_TICKET) === 'yes' ? (int) $parent->get_meta(self::EVENT) : 0;
     }
 
+    /** Make a product a ticket for the event (caller saves the product). */
+    public static function link(\WC_Product $product, int $eventId): void
+    {
+        $product->update_meta_data(self::IS_TICKET, 'yes');
+        $product->update_meta_data(self::EVENT, (string) $eventId);
+    }
+
     public function renderFields(): void
     {
         $events = get_posts(['post_type' => EventPostType::POST_TYPE, 'numberposts' => 100, 'post_status' => 'publish']);

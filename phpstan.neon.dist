@@ -11,5 +11,6 @@ parameters:
         - vendor/
     bootstrapFiles:
         - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+        - vendor/php-stubs/wp-cli-stubs/wp-cli-stubs.php
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: false
