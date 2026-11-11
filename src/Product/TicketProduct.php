@@ -70,7 +70,7 @@ final class TicketProduct implements HasHooks
         // Nonce verified by WooCommerce before this action runs.
         // phpcs:disable WordPress.Security.NonceVerification.Missing
         $product->update_meta_data(self::IS_TICKET, isset($_POST[self::IS_TICKET]) ? 'yes' : 'no');
-        $product->update_meta_data(self::EVENT, isset($_POST[self::EVENT]) ? absint($_POST[self::EVENT]) : 0);
+        $product->update_meta_data(self::EVENT, isset($_POST[self::EVENT]) ? (string) absint($_POST[self::EVENT]) : '0');
         // phpcs:enable
     }
 
