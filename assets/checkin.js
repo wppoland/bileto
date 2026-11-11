@@ -1,10 +1,11 @@
 /* Bileto check-in: camera scan (BarcodeDetector) or name search, one tap per guest. */
 ( function () {
-	const { __ } = wp.i18n;
-	const root = document.querySelector( '.bileto-checkin' );
-	if ( ! root ) {
+	const { __, sprintf } = wp.i18n;
+	const root = document.querySelector( '.bileto-checkin[data-event]' );
+	if ( ! root || root.dataset.event === '0' ) {
 		return;
 	}
+	const event = Number( root.dataset.event );
 	const video = root.querySelector( 'video' );
 	const startBtn = root.querySelector( '.bileto-checkin__start' );
 	const result = root.querySelector( '.bileto-checkin__result' );
@@ -16,19 +17,21 @@
 		already: __( 'Already checked in', 'bileto' ),
 		cancelled: __( 'Ticket cancelled', 'bileto' ),
 		unknown: __( 'Unknown ticket', 'bileto' ),
+		other_event: __( 'Ticket for another event', 'bileto' ),
 	};
 	let busy = false;
-	let lastToken = '';
+	let lastKey = '';
 	let hideTimer;
 
-	async function checkIn( token ) {
-		if ( busy || token === lastToken ) {
+	async function checkIn( data ) {
+		const key = JSON.stringify( data );
+		if ( busy || key === lastKey ) {
 			return;
 		}
 		busy = true;
-		lastToken = token;
+		lastKey = key;
 		try {
-			const res = await wp.apiFetch( { path: '/bileto/v1/checkin', method: 'POST', data: { token } } );
+			const res = await wp.apiFetch( { path: '/bileto/v1/checkin', method: 'POST', data: { event, ...data } } );
 			show( res );
 		} catch ( e ) {
 			show( { code: 'unknown', name: '', event: '', at: '' } );
@@ -42,10 +45,12 @@
 		result.querySelector( '.bileto-checkin__status' ).textContent = TEXT[ res.code ] || TEXT.unknown;
 		result.querySelector( '.bileto-checkin__name' ).textContent = res.name || '';
 		result.querySelector( '.bileto-checkin__detail' ).textContent =
-			res.code === 'already' ? __( 'First entry today at', 'bileto' ) + ' ' + res.at : res.event || '';
+			/* translators: %s: time of the first entry */
+			res.code === 'already' ? sprintf( __( 'First entry today at %s', 'bileto' ), res.at ) : res.event || '';
 		result.hidden = false;
 		if ( res.stats ) {
-			count.textContent = __( 'Checked in today:', 'bileto' ) + ' ' + res.stats.in + ' / ' + res.stats.total;
+			/* translators: 1: checked in today, 2: valid tickets */
+			count.textContent = sprintf( __( 'Checked in today: %1$d of %2$d', 'bileto' ), res.stats.in, res.stats.total );
 		}
 		if ( navigator.vibrate ) {
 			navigator.vibrate( good ? 80 : [ 80, 60, 80 ] );
@@ -56,7 +61,7 @@
 
 	function reset() {
 		result.hidden = true;
-		lastToken = '';
+		lastKey = '';
 	}
 	result.addEventListener( 'click', reset );
 
@@ -83,9 +88,9 @@
 			}
 			try {
 				const codes = await detector.detect( video );
-				const token = codes.length ? codes[ 0 ].rawValue.trim() : '';
-				if ( /^[a-f0-9]{32}$/.test( token ) ) {
-					await checkIn( token );
+				const code = codes.length ? codes[ 0 ].rawValue.trim() : '';
+				if ( /^[a-f0-9]{32}$/.test( code ) ) {
+					await checkIn( { code } );
 				}
 			} catch ( e ) {}
 			requestAnimationFrame( tick );
@@ -97,12 +102,12 @@
 	search.addEventListener( 'input', () => {
 		clearTimeout( searchTimer );
 		const term = search.value.trim();
-		if ( term.length < 2 ) {
+		if ( term.length < 3 ) {
 			list.replaceChildren();
 			return;
 		}
 		searchTimer = setTimeout( async () => {
-			const rows = await wp.apiFetch( { path: '/bileto/v1/tickets?search=' + encodeURIComponent( term ) } );
+			const rows = await wp.apiFetch( { path: '/bileto/v1/tickets?event=' + event + '&search=' + encodeURIComponent( term ) } );
 			list.replaceChildren(
 				...rows.map( ( row ) => {
 					const li = document.createElement( 'li' );
@@ -111,7 +116,7 @@
 					btn.className = 'bileto-checkin__row';
 					btn.disabled = row.status !== 'valid';
 					btn.textContent = row.name + ( row.company ? ', ' + row.company : '' ) + ', ' + row.email;
-					btn.addEventListener( 'click', () => checkIn( row.token ) );
+					btn.addEventListener( 'click', () => checkIn( { ticket_id: row.id } ) );
 					li.append( btn );
 					return li;
 				} )

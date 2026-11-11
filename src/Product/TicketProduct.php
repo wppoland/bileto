@@ -28,19 +28,15 @@ final class TicketProduct implements HasHooks
 
     public static function isTicket(?\WC_Product $product): bool
     {
-        if (! $product) {
-            return false;
-        }
-        $parent = $product->get_parent_id() ? wc_get_product($product->get_parent_id()) : $product;
-
-        return $parent instanceof \WC_Product && $parent->get_meta(self::IS_TICKET) === 'yes' && self::eventId($product) > 0;
+        return $product !== null && self::eventId($product) > 0;
     }
 
+    /** The event a ticket product admits to, or 0 when the product is not a ticket. */
     public static function eventId(\WC_Product $product): int
     {
         $parent = $product->get_parent_id() ? wc_get_product($product->get_parent_id()) : $product;
 
-        return $parent instanceof \WC_Product ? (int) $parent->get_meta(self::EVENT) : 0;
+        return $parent instanceof \WC_Product && $parent->get_meta(self::IS_TICKET) === 'yes' ? (int) $parent->get_meta(self::EVENT) : 0;
     }
 
     public function renderFields(): void

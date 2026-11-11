@@ -32,6 +32,7 @@ final class TicketPage implements HasHooks
         add_shortcode('bileto', [$this, 'render']);
         add_action('template_redirect', [$this, 'handlePost']);
         add_action('template_redirect', [$this, 'serveQr']);
+        add_action('template_redirect', [$this, 'privateHeaders']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue']);
         add_action('woocommerce_thankyou', [$this, 'renderThankYou'], 5);
     }
@@ -46,9 +47,10 @@ final class TicketPage implements HasHooks
         return add_query_arg(['order' => $order->get_id(), 'key' => $order->get_order_key()], self::pageUrl());
     }
 
-    public static function qrUrl(string $token): string
+    /** QR image for e-mails. It carries the check-in code only, which cannot manage the ticket. */
+    public static function qrUrl(string $code): string
     {
-        return add_query_arg('bileto_qr', $token, home_url('/'));
+        return add_query_arg('bileto_qr', $code, home_url('/'));
     }
 
     private static function pageUrl(): string
@@ -68,15 +70,34 @@ final class TicketPage implements HasHooks
 
     public function serveQr(): void
     {
-        // Public by design: the token in the URL is the secret, same as on the ticket itself.
+        // Public by design: the code in the URL is what the QR shows anyway.
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $token = isset($_GET['bileto_qr']) ? sanitize_key(wp_unslash($_GET['bileto_qr'])) : '';
-        if ($token === '' || $this->repo->byToken($token) === null) {
+        $code   = isset($_GET['bileto_qr']) ? sanitize_key(wp_unslash($_GET['bileto_qr'])) : '';
+        $ticket = $code !== '' ? $this->repo->byCode($code) : null;
+        if ($ticket === null || $ticket['status'] !== 'valid' || ! Qr::canPng()) {
             return;
         }
         nocache_headers();
-        Qr::sendPng($token);
+        header('Referrer-Policy: no-referrer');
+        Qr::sendPng($code);
         exit;
+    }
+
+    /**
+     * Ticket and order links carry secrets: keep them out of caches, search
+     * engines and Referer headers sent to third-party scripts.
+     */
+    public function privateHeaders(): void
+    {
+        if (! is_page((int) get_option(self::PAGE_OPTION)) && ! is_wc_endpoint_url('order-received')) {
+            return;
+        }
+        if (! defined('DONOTCACHEPAGE')) {
+            define('DONOTCACHEPAGE', true);
+        }
+        nocache_headers();
+        header('Referrer-Policy: no-referrer');
+        add_filter('wp_robots', 'wp_robots_no_robots');
     }
 
     /** @param array<string, string>|string $atts */
@@ -98,7 +119,7 @@ final class TicketPage implements HasHooks
             return $notice . $this->orderView($order);
         }
 
-        return $this->message(__('Open this page from the link in your ticket e-mail.', 'bileto'));
+        return $notice ?: $this->message(__('Open this page from the link in your ticket e-mail.', 'bileto'));
     }
 
     public function renderThankYou(int $orderId): void
@@ -130,25 +151,22 @@ final class TicketPage implements HasHooks
             wp_die(esc_html__('Please fill in first name, last name and a valid e-mail.', 'bileto'), '', ['response' => 400, 'back_link' => true]);
         }
 
-        $redirect = wp_get_referer() ?: self::pageUrl();
+        // Back to the address the form was on (it posts to itself), keeping its order or ticket link.
+        $redirect = remove_query_arg('bileto_done', home_url(add_query_arg([])));
         if ($action === 'assign') {
             $order = $this->orderFromLink((int) $ticket['order_id'], isset($_POST['key']) ? sanitize_text_field(wp_unslash($_POST['key'])) : '');
             if (! $order) {
                 wp_die(esc_html__('This link is not valid for that order.', 'bileto'), '', ['response' => 403]);
             }
-            if ($ticket['email'] === '') {
-                $this->service->assign($ticketId, $holder);
-            } else {
-                $this->service->transfer($ticketId, $holder, get_current_user_id());
-            }
-            $redirect = add_query_arg('bileto_done', 'assigned', $redirect);
+            $saved    = $ticket['email'] === '' ? $this->service->assign($ticketId, $holder) : $this->service->transfer($ticketId, $holder, get_current_user_id());
+            $redirect = add_query_arg('bileto_done', $saved ? 'assigned' : 'failed', $redirect);
         } elseif ($action === 'transfer') {
             $token = isset($_POST['token']) ? sanitize_key(wp_unslash($_POST['token'])) : '';
             if (! hash_equals($ticket['token'], $token)) {
                 wp_die(esc_html__('This ticket link is no longer valid.', 'bileto'), '', ['response' => 403]);
             }
-            $this->service->transfer($ticketId, $holder, get_current_user_id());
-            $redirect = add_query_arg('bileto_done', 'transferred', remove_query_arg('ticket', $redirect));
+            $saved    = $this->service->transfer($ticketId, $holder, get_current_user_id());
+            $redirect = $saved ? add_query_arg('bileto_done', 'transferred', remove_query_arg('ticket', $redirect)) : add_query_arg('bileto_done', 'failed', $redirect);
         }
 
         wp_safe_redirect($redirect);
@@ -159,7 +177,7 @@ final class TicketPage implements HasHooks
     {
         $order = wc_get_order($orderId);
 
-        return $order instanceof \WC_Order && $key !== '' && hash_equals($order->get_order_key(), $key) ? $order : null;
+        return $order instanceof \WC_Order && $key !== '' && $order->key_is_valid($key) ? $order : null;
     }
 
     /** @param array<string, string> $ticket */
@@ -167,17 +185,17 @@ final class TicketPage implements HasHooks
     {
         $eventId = (int) $ticket['event_id'];
         $status  = $ticket['status'] === 'valid' ? '' : '<p class="bileto-badge bileto-badge--error">' . esc_html__('Cancelled', 'bileto') . '</p>';
-        $start   = EventPostType::startsAt($eventId);
+        $when    = EventPostType::when($eventId);
 
         ob_start();
         ?>
         <article class="bileto-ticket" aria-labelledby="bileto-ticket-title">
-            <div class="bileto-ticket__qr"><?php echo Qr::svg($ticket['token']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG built by the QR library from a hex token. ?></div>
+            <div class="bileto-ticket__qr"><?php echo $ticket['status'] === 'valid' ? Qr::svg($ticket['code']) : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG built by the QR library from a hex code. ?></div>
             <div class="bileto-ticket__body">
                 <?php echo $status; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?>
                 <h2 id="bileto-ticket-title" class="bileto-ticket__event"><?php echo esc_html(get_the_title($eventId)); ?></h2>
-                <?php if ($start !== '') : ?>
-                    <p class="bileto-ticket__meta"><?php echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), (int) strtotime($start))); ?></p>
+                <?php if ($when !== '') : ?>
+                    <p class="bileto-ticket__meta"><?php echo esc_html($when); ?></p>
                 <?php endif; ?>
                 <p class="bileto-ticket__meta"><?php echo esc_html(EventPostType::venue($eventId)); ?></p>
                 <p class="bileto-ticket__name"><?php echo esc_html(trim($ticket['first_name'] . ' ' . $ticket['last_name'])); ?></p>
@@ -185,7 +203,7 @@ final class TicketPage implements HasHooks
                     <p class="bileto-ticket__meta"><?php echo esc_html($ticket['company']); ?></p>
                 <?php endif; ?>
                 <p class="bileto-ticket__hint"><?php esc_html_e('Show this QR code at the entrance, on your phone or printed.', 'bileto'); ?></p>
-                <button type="button" class="wp-element-button bileto-button bileto-button--ghost" onclick="window.print()"><?php esc_html_e('Print Ticket', 'bileto'); ?></button>
+                <button type="button" class="wp-element-button bileto-button" onclick="window.print()"><?php esc_html_e('Print Ticket', 'bileto'); ?></button>
             </div>
         </article>
         <?php if ($ticket['status'] === 'valid') : ?>
@@ -273,11 +291,13 @@ final class TicketPage implements HasHooks
 
     private function notice(string $done): string
     {
-        $text = $done === 'transferred'
-            ? __('Ticket transferred. The new holder has received it by e-mail.', 'bileto')
-            : __('Saved. The attendee has received the ticket by e-mail.', 'bileto');
+        $texts = [
+            'transferred' => __('Ticket transferred. The new holder has received it by e-mail.', 'bileto'),
+            'assigned'    => __('Saved. The attendee has received the ticket by e-mail.', 'bileto'),
+            'failed'      => __('Nothing was saved. Please try again.', 'bileto'),
+        ];
 
-        return '<p class="bileto-notice" role="status">' . esc_html($text) . '</p>';
+        return isset($texts[$done]) ? '<p class="bileto-notice' . ($done === 'failed' ? ' bileto-notice--error' : '') . '" role="status">' . esc_html($texts[$done]) . '</p>' : '';
     }
 
     private function message(string $text): string

@@ -45,7 +45,7 @@ final class EventPostType implements HasHooks
             'show_ui'      => true,
             'show_in_rest' => true,
             'menu_icon'    => 'dashicons-tickets-alt',
-            'supports'     => ['title', 'editor', 'thumbnail'],
+            'supports'     => ['title'],
             'capability_type' => 'product',
             'map_meta_cap' => true,
         ]);
@@ -105,9 +105,24 @@ final class EventPostType implements HasHooks
         return $country !== '' ? $country : WC()->countries->get_base_country();
     }
 
-    public static function startsAt(int $eventId): string
+    /** Event date and time in the site time zone, e.g. "12.11.2027 09:00 - 14.11.2027 18:00". */
+    public static function when(int $eventId): string
     {
-        return (string) get_post_meta($eventId, '_bileto_start', true);
+        $format = get_option('date_format') . ' ' . get_option('time_format');
+        $parts  = [];
+        foreach (['_bileto_start', '_bileto_end'] as $key) {
+            $value = (string) get_post_meta($eventId, $key, true);
+            if ($value === '') {
+                continue;
+            }
+            try {
+                $parts[] = wp_date($format, (new \DateTimeImmutable($value, wp_timezone()))->getTimestamp());
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        return implode(' - ', $parts);
     }
 
     public static function venue(int $eventId): string

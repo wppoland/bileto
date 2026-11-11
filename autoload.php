@@ -1,7 +1,6 @@
 <?php
 /**
- * Autoloading: prefer Composer classmap when present. Fall back to a
- * minimal PSR-4 autoloader so the plugin still boots if vendor/ is absent.
+ * Autoloading through Composer. The plugin does not boot without vendor/.
  *
  * @package Bileto
  */
@@ -18,18 +17,7 @@ if (is_readable($bileto_composer)) {
     return;
 }
 
-spl_autoload_register(static function (string $class): void {
-    $prefix  = 'Bileto\\';
-    $baseDir = __DIR__ . '/src/';
-
-    $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) {
-        return;
-    }
-
-    $relative = substr($class, $len);
-    $file     = $baseDir . str_replace('\\', '/', $relative) . '.php';
-    if (is_readable($file)) {
-        require_once $file;
-    }
+// The QR library ships in vendor/; without it the plugin cannot issue tickets.
+add_action('admin_notices', static function (): void {
+    echo '<div class="notice notice-error"><p>' . esc_html__('Bileto is missing its vendor directory. Reinstall the plugin from its release zip.', 'bileto') . '</p></div>';
 });

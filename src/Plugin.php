@@ -49,6 +49,7 @@ final class Plugin
             new TicketPage($tickets, $service),
             new Emails($tickets),
             new Checkin($tickets, $service),
+            new Privacy($tickets),
         ];
     }
 

@@ -10,10 +10,14 @@ defined('ABSPATH') || exit;
  * Own tables (one row per ticket, plus transfer and check-in history), the
  * Check-in role and the ticket page. Runs on first boot and whenever
  * DB_VERSION changes.
+ *
+ * Each ticket has two secrets: `token` manages it (ticket page, transfer) and
+ * `code` is what the QR holds, so a photographed QR cannot move the ticket.
+ * UNIQUE(order_item_id, seat) stops a double payment callback issuing twice.
  */
 final class Schema
 {
-    public const DB_VERSION = '2';
+    public const DB_VERSION = '3';
     private const OPTION    = 'bileto_db_version';
 
     public static function maybeUpgrade(): void
@@ -39,15 +43,18 @@ final class Schema
             event_id bigint(20) unsigned NOT NULL,
             first_name varchar(100) NOT NULL DEFAULT '',
             last_name varchar(100) NOT NULL DEFAULT '',
+            seat smallint(5) unsigned NOT NULL DEFAULT 0,
             email varchar(190) NOT NULL DEFAULT '',
             company varchar(190) NOT NULL DEFAULT '',
-            role varchar(40) NOT NULL DEFAULT 'attendee',
             status varchar(20) NOT NULL DEFAULT 'valid',
             token char(32) NOT NULL,
+            code char(32) NOT NULL,
             created_at datetime NOT NULL,
             updated_at datetime NOT NULL,
             PRIMARY KEY  (id),
             UNIQUE KEY token (token),
+            UNIQUE KEY code (code),
+            UNIQUE KEY seat (order_item_id, seat),
             KEY order_id (order_id),
             KEY event_id (event_id),
             KEY email (email)
@@ -67,7 +74,6 @@ final class Schema
         dbDelta("CREATE TABLE {$p}bileto_checkins (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             ticket_id bigint(20) unsigned NOT NULL,
-            direction varchar(3) NOT NULL DEFAULT 'in',
             user_id bigint(20) unsigned NOT NULL DEFAULT 0,
             created_at datetime NOT NULL,
             PRIMARY KEY  (id),
@@ -76,7 +82,7 @@ final class Schema
 
         \Bileto\Checkin\Checkin::addRoles();
         self::ensurePage();
-        update_option(self::OPTION, self::DB_VERSION, false);
+        update_option(self::OPTION, self::DB_VERSION);
     }
 
     private static function ensurePage(): void

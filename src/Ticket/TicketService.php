@@ -26,40 +26,51 @@ final class TicketService implements HasHooks
         foreach (['cancelled', 'refunded', 'failed'] as $status) {
             add_action('woocommerce_order_status_' . $status, [$this, 'cancelForOrder']);
         }
+        add_action('woocommerce_before_delete_order', [$this, 'cancelForOrder']);
+        add_action('woocommerce_trash_order', [$this, 'cancelForOrder']);
     }
 
+    /**
+     * Issues the missing tickets of a paid order. An order that was cancelled
+     * and is paid again gets its tickets back.
+     */
     public function issueForOrder(int $orderId): void
     {
         $order = wc_get_order($orderId);
         if (! $order instanceof \WC_Order) {
             return;
         }
-        $buyerHasTicket = $this->repo->forOrder($orderId) !== [];
+        $existing = $this->repo->forOrder($orderId);
+        if ($existing !== [] && $existing[0]['status'] === 'cancelled') {
+            $this->repo->setStatusForOrder($orderId, 'valid');
+        }
+        $buyerHasTicket = $existing !== [];
         $issued         = [];
 
         foreach ($order->get_items() as $itemId => $item) {
-            if (! $item instanceof \WC_Order_Item_Product) {
+            $product = $item instanceof \WC_Order_Item_Product ? $item->get_product() : null;
+            if (! $product instanceof \WC_Product || TicketProduct::eventId($product) === 0) {
                 continue;
             }
-            $product = $item->get_product();
-            if (! $product instanceof \WC_Product || ! TicketProduct::isTicket($product)) {
-                continue;
-            }
-            $missing = (int) $item->get_quantity() - $this->repo->countForItem((int) $itemId);
-            for ($i = 0; $i < $missing; $i++) {
+            $have = $this->repo->countForItem((int) $itemId);
+            for ($seat = $have; $seat < (int) $item->get_quantity(); $seat++) {
                 $holder = $buyerHasTicket ? [] : [
                     'first_name' => $order->get_billing_first_name(),
                     'last_name'  => $order->get_billing_last_name(),
                     'email'      => $order->get_billing_email(),
                     'company'    => $order->get_billing_company(),
                 ];
-                $buyerHasTicket = true;
-                $issued[]       = $this->repo->create($holder + [
+                $id = $this->repo->create($holder + [
                     'order_id'      => $orderId,
                     'order_item_id' => (int) $itemId,
+                    'seat'          => $seat,
                     'product_id'    => $product->get_id(),
                     'event_id'      => TicketProduct::eventId($product),
                 ]);
+                if ($id > 0) {
+                    $buyerHasTicket = true;
+                    $issued[]       = $id;
+                }
             }
         }
 
@@ -75,41 +86,49 @@ final class TicketService implements HasHooks
     }
 
     /**
-     * Put a name on an unassigned seat. The token stays: nobody held it yet.
+     * Put a name on an unassigned seat. The secrets stay: nobody held them yet.
      *
      * @param array{first_name: string, last_name: string, email: string, company: string} $holder
      */
-    public function assign(int $ticketId, array $holder): void
+    public function assign(int $ticketId, array $holder): bool
     {
-        $this->repo->update($ticketId, $holder);
+        if (! $this->repo->update($ticketId, $holder)) {
+            return false;
+        }
         do_action('bileto_assigned', $ticketId);
+
+        return true;
     }
 
     /**
-     * Hand a ticket to someone else: new token, old QR stops working,
-     * order and invoice stay as they are.
+     * Hand a ticket to someone else: new secrets, old QR and link stop working,
+     * order and invoice stay as they are. The previous holder is told.
      *
      * @param array{first_name: string, last_name: string, email: string, company: string} $holder
      */
-    public function transfer(int $ticketId, array $holder, int $userId): void
+    public function transfer(int $ticketId, array $holder, int $userId): bool
     {
         $ticket = $this->repo->find($ticketId);
-        if ($ticket === null) {
-            return;
+        if ($ticket === null || ! $this->repo->update($ticketId, $holder + TicketRepository::newSecrets())) {
+            return false;
         }
-        $this->repo->update($ticketId, $holder + ['token' => TicketRepository::newToken()]);
         $this->repo->logTransfer($ticketId, $ticket['email'], $holder['email'], $userId);
-        do_action('bileto_transferred', $ticketId, $ticket['email']);
+        do_action('bileto_transferred', $ticketId, $ticket);
+
+        return true;
     }
 
     /**
-     * @return array{code: 'ok'|'already'|'cancelled'|'unknown', ticket: array<string, string>|null, at: string|null}
+     * @param array<string, string>|null $ticket
+     * @return array{code: 'ok'|'already'|'cancelled'|'unknown'|'other_event', ticket: array<string, string>|null, at: string|null}
      */
-    public function checkIn(string $token, int $userId): array
+    public function checkIn(?array $ticket, int $eventId, int $userId): array
     {
-        $ticket = $this->repo->byToken($token);
         if ($ticket === null) {
             return ['code' => 'unknown', 'ticket' => null, 'at' => null];
+        }
+        if ((int) $ticket['event_id'] !== $eventId) {
+            return ['code' => 'other_event', 'ticket' => $ticket, 'at' => null];
         }
         if ($ticket['status'] !== 'valid') {
             return ['code' => 'cancelled', 'ticket' => $ticket, 'at' => null];

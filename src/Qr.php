@@ -10,12 +10,12 @@ use chillerlan\QRCode\QROptions;
 defined('ABSPATH') || exit;
 
 /**
- * QR codes generated locally (no external service). The code holds only the
- * ticket token; everything else is looked up on the server at check-in.
+ * QR codes generated locally (no external service). The QR holds only the
+ * ticket's check-in code; everything else is looked up on the server.
  */
 final class Qr
 {
-    public static function svg(string $token): string
+    public static function svg(string $code): string
     {
         return (new QRCode(new QROptions([
             'outputType'     => 'svg',
@@ -23,24 +23,23 @@ final class Qr
             'addQuietzone'   => true,
             'svgAddXmlHeader' => false,
             'eccLevel'       => \chillerlan\QRCode\Common\EccLevel::M,
-        ])))->render($token);
+        ])))->render($code);
     }
 
-    /** PNG for e-mail clients, which do not show inline SVG. Falls back to SVG without GD. */
-    public static function sendPng(string $token): void
+    public static function canPng(): bool
     {
-        if (! extension_loaded('gd')) {
-            header('Content-Type: image/svg+xml');
-            echo self::svg($token); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- image body.
+        return extension_loaded('gd');
+    }
 
-            return;
-        }
+    /** PNG for e-mail clients, which do not show inline SVG. Needs GD (see canPng()). */
+    public static function sendPng(string $code): void
+    {
         $png = (new QRCode(new QROptions([
             'outputType'   => 'png',
             'outputBase64' => false,
             'scale'        => 8,
             'eccLevel'     => \chillerlan\QRCode\Common\EccLevel::M,
-        ])))->render($token);
+        ])))->render($code);
         header('Content-Type: image/png');
         echo $png; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- image body.
     }

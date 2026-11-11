@@ -11,8 +11,9 @@ use Bileto\Ticket\TicketRepository;
 defined('ABSPATH') || exit;
 
 /**
- * Registers the ticket e-mail and adds the "assign attendees" link to the
- * buyer's order e-mails when the order holds more than one ticket.
+ * Registers the ticket e-mails through WooCommerce's own e-mail actions
+ * (lazy mailer, optional background sending) and adds the "assign attendees"
+ * link to the buyer's order e-mails.
  */
 final class Emails implements HasHooks
 {
@@ -23,11 +24,8 @@ final class Emails implements HasHooks
     public function registerHooks(): void
     {
         add_filter('woocommerce_email_classes', [$this, 'register']);
+        add_filter('woocommerce_email_actions', [$this, 'actions']);
         add_action('woocommerce_email_after_order_table', [$this, 'assignLink'], 10, 4);
-        // WooCommerce loads e-mail classes lazily; ticket hooks must exist before the first ticket is issued.
-        foreach (['bileto_issued', 'bileto_assigned', 'bileto_transferred'] as $hook) {
-            add_action($hook, [$this, 'loadMailer'], 1);
-        }
     }
 
     /**
@@ -36,14 +34,19 @@ final class Emails implements HasHooks
      */
     public function register($emails): array
     {
-        $emails['bileto_ticket'] = new TicketEmail($this->repo);
+        $emails['bileto_ticket']      = new TicketEmail($this->repo);
+        $emails['bileto_transferred'] = new TransferNoticeEmail();
 
         return $emails;
     }
 
-    public function loadMailer(): void
+    /**
+     * @param list<string> $actions
+     * @return list<string>
+     */
+    public function actions($actions): array
     {
-        WC()->mailer();
+        return array_merge((array) $actions, ['bileto_issued', 'bileto_assigned', 'bileto_transferred']);
     }
 
     /**

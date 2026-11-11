@@ -63,6 +63,7 @@
 	background: var(--bileto-surface);
 	animation: bileto-in var(--bileto-dur-panel) var(--bileto-ease-out) both;
 }
+.bileto-notice--error { border-color: var(--bileto-error); }
 .bileto-badge--error { border-color: var(--bileto-error); display: inline-block; padding: 0.25rem 0.75rem; }
 
 @keyframes bileto-in {
