@@ -4,7 +4,7 @@
     'name' => 'wppoland/bileto',
     'pretty_version' => 'dev-main',
     'version' => 'dev-main',
-    'reference' => '34d4cc20fc99bdbd24f07eb70803578bc40281bf',
+    'reference' => 'ac49150250d408c6882e11d5c85dc544aa5d5ea7',
     'type' => 'wordpress-plugin',
     'install_path' => __DIR__ . '/../',
     'aliases' => 
