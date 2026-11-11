@@ -29,8 +29,9 @@ defined('ABSPATH') || exit;
  *
  * Each item name becomes a private ticket product of the event (reused when
  * it exists). Invoice numbers go to the order note and to
- * `_bileto_external_invoices`, so invoicing plugins can tell the order was
- * invoiced outside the shop (Polski PRO reads `_polski_external_invoice`).
+ * `_polski_external_invoice`, which tells Polski PRO the order was invoiced
+ * outside the shop, so it never issues a second one. The buyer's tax ID goes
+ * to `_billing_nip`, where Polski reads it.
  */
 final class OrderImporter
 {
@@ -141,7 +142,10 @@ final class OrderImporter
         $gross = 0;
         $seats = 0;
         foreach ((array) $row['items'] as $line) {
-            $qty  = max(1, (int) $line['quantity']);
+            $qty  = (int) $line['quantity'];
+            if ($qty < 1) {
+                throw new \InvalidArgumentException('Quantity must be at least 1.');
+            }
             $net  = (int) $line['net'];
             $tax  = (int) $line['tax'];
             $item = new \WC_Order_Item_Product();
@@ -161,7 +165,6 @@ final class OrderImporter
         $invoices = array_values(array_filter(array_map('strval', (array) ($row['invoices'] ?? []))));
         $order->update_meta_data(self::META, $source . ':' . $row['id']);
         if ($invoices !== []) {
-            $order->update_meta_data('_bileto_external_invoices', $invoices);
             $order->update_meta_data('_polski_external_invoice', implode(', ', $invoices));
         }
         if ($dryRun) {
@@ -188,7 +191,8 @@ final class OrderImporter
         if (isset($this->products[$cacheKey])) {
             return $this->products[$cacheKey];
         }
-        foreach (wc_get_products(['status' => ['publish', 'private'], 'limit' => -1, 'name' => $name]) as $existing) {
+        foreach (wc_get_products(['status' => ['publish', 'private'], 'limit' => 50, 'name' => $name, 'return' => 'ids']) as $id) {
+            $existing = wc_get_product($id);
             if ($existing instanceof \WC_Product && TicketProduct::eventId($existing) === $eventId) {
                 return $this->products[$cacheKey] = $existing;
             }
