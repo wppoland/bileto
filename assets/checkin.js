@@ -65,35 +65,68 @@
 	}
 	result.addEventListener( 'click', reset );
 
-	startBtn.addEventListener( 'click', async () => {
-		if ( ! ( 'BarcodeDetector' in window ) ) {
-			startBtn.textContent = __( 'This browser cannot scan. Use the search below.', 'bileto' );
-			startBtn.disabled = true;
-			search.focus();
-			return;
+	// Safari (iPhone, Mac) has no BarcodeDetector: decode frames with jsQR, loaded only then.
+	function loadJsQr() {
+		return new Promise( ( resolve, reject ) => {
+			if ( window.jsQR ) {
+				return resolve( window.jsQR );
+			}
+			const script = document.createElement( 'script' );
+			script.src = root.dataset.jsqr;
+			script.onload = () => resolve( window.jsQR );
+			script.onerror = reject;
+			document.head.append( script );
+		} );
+	}
+
+	async function makeDetector() {
+		if ( 'BarcodeDetector' in window ) {
+			const native = new window.BarcodeDetector( { formats: [ 'qr_code' ] } );
+			return async () => {
+				const codes = await native.detect( video );
+				return codes.length ? codes[ 0 ].rawValue : '';
+			};
 		}
+		const jsQR = await loadJsQr();
+		const canvas = document.createElement( 'canvas' );
+		const ctx = canvas.getContext( '2d', { willReadFrequently: true } );
+		return async () => {
+			const scale = Math.min( 1, 640 / ( video.videoWidth || 640 ) );
+			canvas.width = Math.round( video.videoWidth * scale );
+			canvas.height = Math.round( video.videoHeight * scale );
+			if ( ! canvas.width ) {
+				return '';
+			}
+			ctx.drawImage( video, 0, 0, canvas.width, canvas.height );
+			const frame = ctx.getImageData( 0, 0, canvas.width, canvas.height );
+			const found = jsQR( frame.data, frame.width, frame.height, { inversionAttempts: 'dontInvert' } );
+			return found ? found.data : '';
+		};
+	}
+
+	startBtn.addEventListener( 'click', async () => {
+		let detect;
 		try {
+			detect = await makeDetector();
 			video.srcObject = await navigator.mediaDevices.getUserMedia( { video: { facingMode: 'environment' } } );
 		} catch ( e ) {
 			startBtn.textContent = __( 'No camera access. Use the search below.', 'bileto' );
+			search.focus();
 			return;
 		}
 		await video.play();
 		startBtn.hidden = true;
 		root.classList.add( 'is-scanning' );
-		const detector = new window.BarcodeDetector( { formats: [ 'qr_code' ] } );
 		const tick = async () => {
-			if ( ! result.hidden ) {
-				return requestAnimationFrame( tick );
+			if ( result.hidden ) {
+				try {
+					const code = ( await detect() ).trim();
+					if ( /^[a-f0-9]{32}$/.test( code ) ) {
+						await checkIn( { code } );
+					}
+				} catch ( e ) {}
 			}
-			try {
-				const codes = await detector.detect( video );
-				const code = codes.length ? codes[ 0 ].rawValue.trim() : '';
-				if ( /^[a-f0-9]{32}$/.test( code ) ) {
-					await checkIn( { code } );
-				}
-			} catch ( e ) {}
-			requestAnimationFrame( tick );
+			setTimeout( () => requestAnimationFrame( tick ), 120 );
 		};
 		tick();
 	} );

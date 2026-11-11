@@ -44,7 +44,7 @@ final class TicketService implements HasHooks
     public function sync($orderId): void
     {
         $order = wc_get_order((int) $orderId);
-        if (! $order instanceof \WC_Order || $order instanceof \WC_Order_Refund) {
+        if (! $order instanceof \WC_Order) {
             return;
         }
         $status  = $order->get_status();

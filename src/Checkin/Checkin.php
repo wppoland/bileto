@@ -140,7 +140,7 @@ final class Checkin implements HasHooks
         $events  = get_posts(['post_type' => EventPostType::POST_TYPE, 'numberposts' => 50, 'post_status' => 'publish']);
         $stats   = $this->repo->stats($eventId);
         ?>
-        <div class="wrap bileto-checkin" data-event="<?php echo esc_attr((string) $eventId); ?>">
+        <div class="wrap bileto-checkin" data-event="<?php echo esc_attr((string) $eventId); ?>" data-jsqr="<?php echo esc_url(plugins_url('assets/vendor/jsqr.js', \Bileto\PLUGIN_FILE) . '?ver=1.4.0'); ?>">
             <h1><?php esc_html_e('Check-in', 'bileto'); ?></h1>
             <?php if ($eventId === 0) : ?>
                 <p><?php esc_html_e('Create an event first.', 'bileto'); ?></p>
