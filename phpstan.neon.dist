@@ -1,0 +1,15 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 6
+    paths:
+        - bileto.php
+        - uninstall.php
+        - src
+    excludePaths:
+        - vendor/
+    bootstrapFiles:
+        - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false

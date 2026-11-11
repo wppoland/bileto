@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<ruleset name="Bileto">
+    <description>WordPress Coding Standards - output escaping, nonces, redirects, and SQL placeholder safety. WordPress.org Plugin Check is the full compliance gate.</description>
+
+    <file>bileto.php</file>
+    <file>uninstall.php</file>
+    <file>src</file>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/build/*</exclude-pattern>
+    <exclude-pattern>*/tests/*</exclude-pattern>
+    <exclude-pattern>*/scripts/*</exclude-pattern>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+
+    <config name="minimum_supported_wp_version" value="6.5"/>
+    <config name="ignore_warnings_on_exit" value="1"/>
+
+    <rule ref="WordPress.Security.EscapeOutput"/>
+    <rule ref="WordPress.Security.NonceVerification"/>
+    <rule ref="WordPress.Security.SafeRedirect"/>
+    <rule ref="WordPress.Security.PluginMenuSlug"/>
+    <rule ref="WordPress.Security.ValidatedSanitizedInput"/>
+    <rule ref="WordPress.DB.PreparedSQL">
+        <exclude name="WordPress.DB.PreparedSQL.InterpolatedNotPrepared"/>
+    </rule>
+    <rule ref="WordPress.DB.PreparedSQLPlaceholders"/>
+
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="bileto"/>
+            </property>
+        </properties>
+    </rule>
+</ruleset>

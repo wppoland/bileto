@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    uses: wppoland/workflows/.github/workflows/_php-ci.yml@v1
+    with:
+      slug: bileto
+      has-js: false
+      run-i18n: false
+      run-playwright: false
+      run-plugin-check: true

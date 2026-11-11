@@ -1,0 +1,8 @@
+vendor/
+node_modules/
+.DS_Store
+*.zip
+.phpunit.result.cache
+.wp-env.override.json
+.shotkit
+.raw
