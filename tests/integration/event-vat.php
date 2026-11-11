@@ -41,6 +41,15 @@ $added = apply_filters('woocommerce_add_to_cart_validation', true, $product->get
 bileto_test_assert($added === false, 'a ticket cannot join a cart with other products');
 wc_clear_notices();
 
+// Orders created or recalculated in admin follow the same rule.
+$order = wc_create_order();
+$order->add_product($product, 1);
+$order->set_billing_country('DE');
+$order->update_meta_data('is_vat_exempt', 'yes');
+$order->calculate_totals();
+bileto_test_assert(abs((float) $order->get_total_tax() - 23.0) < 0.01, 'admin order for a DE VAT-exempt buyer gets 23% PL VAT (got ' . $order->get_total_tax() . ')');
+$order->delete(true);
+
 WC()->cart->empty_cart();
 WC()->customer->set_is_vat_exempt(false);
 $plain->delete(true);

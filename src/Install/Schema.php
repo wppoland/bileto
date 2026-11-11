@@ -7,12 +7,13 @@ namespace Bileto\Install;
 defined('ABSPATH') || exit;
 
 /**
- * Own tables: one row per ticket, plus transfer and check-in history.
- * Created on activation and upgraded when DB_VERSION changes.
+ * Own tables (one row per ticket, plus transfer and check-in history), the
+ * Check-in role and the ticket page. Runs on first boot and whenever
+ * DB_VERSION changes.
  */
 final class Schema
 {
-    public const DB_VERSION = '1';
+    public const DB_VERSION = '2';
     private const OPTION    = 'bileto_db_version';
 
     public static function maybeUpgrade(): void
@@ -73,6 +74,26 @@ final class Schema
             KEY ticket_id (ticket_id)
         ) $charset;");
 
+        \Bileto\Checkin\Checkin::addRoles();
+        self::ensurePage();
         update_option(self::OPTION, self::DB_VERSION, false);
+    }
+
+    private static function ensurePage(): void
+    {
+        $option = \Bileto\Front\TicketPage::PAGE_OPTION;
+        if (get_post_status((int) get_option($option)) === 'publish') {
+            return;
+        }
+        $id = wp_insert_post([
+            'post_type'    => 'page',
+            'post_status'  => 'publish',
+            'post_title'   => __('My Ticket', 'bileto'),
+            'post_name'    => 'ticket',
+            'post_content' => '<!-- wp:shortcode -->[bileto]<!-- /wp:shortcode -->',
+        ]);
+        if (is_int($id) && $id > 0) {
+            update_option($option, $id);
+        }
     }
 }

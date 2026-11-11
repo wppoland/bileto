@@ -30,6 +30,36 @@ final class EventVat implements HasHooks
             add_action($hook, [$this, 'keepVatOnTickets'], 1000);
         }
         add_filter('woocommerce_order_is_vat_exempt', [$this, 'keepVatOnTicketOrder'], 20, 2);
+        add_filter('woocommerce_order_get_tax_location', [$this, 'orderLocation'], 20, 2);
+    }
+
+    /**
+     * Orders created or recalculated in admin are taxed by order address, not
+     * by cart item, so a ticket order takes the event country as its location.
+     *
+     * @param array<string, string> $location
+     * @param \WC_Abstract_Order    $order
+     * @return array<string, string>
+     */
+    public function orderLocation($location, $order): array
+    {
+        $eventId = self::enabled() && $order instanceof \WC_Abstract_Order ? self::ticketEvent($order) : 0;
+
+        return $eventId > 0
+            ? ['country' => EventPostType::country($eventId), 'state' => '', 'postcode' => '', 'city' => ''] + (array) $location
+            : (array) $location;
+    }
+
+    private static function ticketEvent(\WC_Abstract_Order $order): int
+    {
+        foreach ($order->get_items() as $item) {
+            $product = $item instanceof \WC_Order_Item_Product ? $item->get_product() : null;
+            if ($product instanceof \WC_Product && TicketProduct::isTicket($product)) {
+                return TicketProduct::eventId($product);
+            }
+        }
+
+        return 0;
     }
 
     /**
@@ -79,13 +109,8 @@ final class EventVat implements HasHooks
         if (! $exempt || ! self::enabled() || ! $order instanceof \WC_Order) {
             return (bool) $exempt;
         }
-        foreach ($order->get_items() as $item) {
-            if ($item instanceof \WC_Order_Item_Product && TicketProduct::isTicket($item->get_product() ?: null)) {
-                return false;
-            }
-        }
 
-        return true;
+        return self::ticketEvent($order) === 0;
     }
 
     private static function enabled(): bool

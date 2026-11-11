@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Bileto;
 
+use Bileto\Checkin\Checkin;
 use Bileto\Contract\HasHooks;
+use Bileto\Email\Emails;
 use Bileto\Event\EventPostType;
+use Bileto\Front\TicketPage;
 use Bileto\Install\Schema;
 use Bileto\Product\TicketProduct;
 use Bileto\Tax\EventVat;
@@ -43,6 +46,9 @@ final class Plugin
             $service,
             new TicketProduct(),
             new EventVat(),
+            new TicketPage($tickets, $service),
+            new Emails($tickets),
+            new Checkin($tickets, $service),
         ];
     }
 
