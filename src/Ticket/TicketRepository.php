@@ -54,7 +54,7 @@ final class TicketRepository
     public function find(int $id): ?array
     {
         global $wpdb;
-        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$this->tickets} WHERE id = %d", $id), ARRAY_A);
+        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM %i WHERE id = %d", $this->tickets, $id), ARRAY_A);
 
         return is_array($row) ? $row : null;
     }
@@ -78,8 +78,8 @@ final class TicketRepository
         if (! preg_match('/^[a-f0-9]{32}$/', $value)) {
             return null;
         }
-        $sql = $column === 'code' ? "SELECT * FROM {$this->tickets} WHERE code = %s" : "SELECT * FROM {$this->tickets} WHERE token = %s";
-        $row = $wpdb->get_row($wpdb->prepare($sql, $value), ARRAY_A); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is one of two literals.
+        $sql = $column === 'code' ? 'SELECT * FROM %i WHERE code = %s' : 'SELECT * FROM %i WHERE token = %s';
+        $row = $wpdb->get_row($wpdb->prepare($sql, $this->tickets, $value), ARRAY_A); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is one of two literals.
 
         return is_array($row) ? $row : null;
     }
@@ -89,7 +89,7 @@ final class TicketRepository
     {
         global $wpdb;
 
-        return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$this->tickets} WHERE order_id = %d ORDER BY id", $orderId), ARRAY_A) ?: [];
+        return $wpdb->get_results($wpdb->prepare("SELECT * FROM %i WHERE order_id = %d ORDER BY id", $this->tickets, $orderId), ARRAY_A) ?: [];
     }
 
     /** @return list<Ticket> */
@@ -97,14 +97,14 @@ final class TicketRepository
     {
         global $wpdb;
 
-        return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$this->tickets} WHERE order_item_id = %d ORDER BY seat", $itemId), ARRAY_A) ?: [];
+        return $wpdb->get_results($wpdb->prepare("SELECT * FROM %i WHERE order_item_id = %d ORDER BY seat", $this->tickets, $itemId), ARRAY_A) ?: [];
     }
 
     public function countForItem(int $itemId): int
     {
         global $wpdb;
 
-        return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$this->tickets} WHERE order_item_id = %d", $itemId));
+        return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM %i WHERE order_item_id = %d", $this->tickets, $itemId));
     }
 
     public function setStatusForOrder(int $orderId, string $status): void
@@ -120,7 +120,8 @@ final class TicketRepository
         $like = '%' . $wpdb->esc_like($term) . '%';
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->tickets} WHERE event_id = %d AND (email LIKE %s OR CONCAT(first_name, ' ', last_name) LIKE %s OR company LIKE %s) ORDER BY last_name, first_name LIMIT %d",
+            "SELECT * FROM %i WHERE event_id = %d AND (email LIKE %s OR CONCAT(first_name, ' ', last_name) LIKE %s OR company LIKE %s) ORDER BY last_name, first_name LIMIT %d",
+            $this->tickets,
             $eventId,
             $like,
             $like,
@@ -139,7 +140,9 @@ final class TicketRepository
         global $wpdb;
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT t.id, t.order_id, t.first_name, t.last_name, t.email, t.company, t.status, (SELECT MIN(c.created_at) FROM {$this->checkins} c WHERE c.ticket_id = t.id) AS checked_in FROM {$this->tickets} t WHERE t.event_id = %d ORDER BY t.last_name, t.first_name, t.id",
+            "SELECT t.id, t.order_id, t.first_name, t.last_name, t.email, t.company, t.status, (SELECT MIN(c.created_at) FROM %i c WHERE c.ticket_id = t.id) AS checked_in FROM %i t WHERE t.event_id = %d ORDER BY t.last_name, t.first_name, t.id",
+            $this->checkins,
+            $this->tickets,
             $eventId
         ), ARRAY_A) ?: [];
     }
@@ -160,7 +163,7 @@ final class TicketRepository
     public function checkinToday(int $ticketId): ?string
     {
         global $wpdb;
-        $at = $wpdb->get_var($wpdb->prepare("SELECT MIN(created_at) FROM {$this->checkins} WHERE ticket_id = %d AND created_at >= %s", $ticketId, self::todayStartGmt()));
+        $at = $wpdb->get_var($wpdb->prepare("SELECT MIN(created_at) FROM %i WHERE ticket_id = %d AND created_at >= %s", $this->checkins, $ticketId, self::todayStartGmt()));
 
         return is_string($at) ? $at : null;
     }
@@ -169,9 +172,11 @@ final class TicketRepository
     public function stats(int $eventId): array
     {
         global $wpdb;
-        $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$this->tickets} WHERE event_id = %d AND status = 'valid'", $eventId));
+        $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM %i WHERE event_id = %d AND status = 'valid'", $this->tickets, $eventId));
         $in    = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(DISTINCT c.ticket_id) FROM {$this->checkins} c JOIN {$this->tickets} t ON t.id = c.ticket_id WHERE t.event_id = %d AND t.status = 'valid' AND c.created_at >= %s",
+            "SELECT COUNT(DISTINCT c.ticket_id) FROM %i c JOIN %i t ON t.id = c.ticket_id WHERE t.event_id = %d AND t.status = 'valid' AND c.created_at >= %s",
+            $this->checkins,
+            $this->tickets,
             $eventId,
             self::todayStartGmt()
         ));
@@ -184,7 +189,7 @@ final class TicketRepository
     {
         global $wpdb;
 
-        return $wpdb->get_results($wpdb->prepare("SELECT ticket_id, from_email, to_email, created_at FROM {$this->transfers} WHERE from_email = %s OR to_email = %s", $email, $email), ARRAY_A) ?: [];
+        return $wpdb->get_results($wpdb->prepare("SELECT ticket_id, from_email, to_email, created_at FROM %i WHERE from_email = %s OR to_email = %s", $this->transfers, $email, $email), ARRAY_A) ?: [];
     }
 
     /** @return list<Ticket> */
@@ -192,15 +197,15 @@ final class TicketRepository
     {
         global $wpdb;
 
-        return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$this->tickets} WHERE email = %s", $email), ARRAY_A) ?: [];
+        return $wpdb->get_results($wpdb->prepare("SELECT * FROM %i WHERE email = %s", $this->tickets, $email), ARRAY_A) ?: [];
     }
 
     public function anonymizeEmail(string $email): int
     {
         global $wpdb;
-        $tickets = (int) $wpdb->query($wpdb->prepare("UPDATE {$this->tickets} SET first_name = '', last_name = '', company = '', email = '' WHERE email = %s", $email));
-        $wpdb->query($wpdb->prepare("UPDATE {$this->transfers} SET from_email = '' WHERE from_email = %s", $email));
-        $wpdb->query($wpdb->prepare("UPDATE {$this->transfers} SET to_email = '' WHERE to_email = %s", $email));
+        $tickets = (int) $wpdb->query($wpdb->prepare("UPDATE %i SET first_name = '', last_name = '', company = '', email = '' WHERE email = %s", $this->tickets, $email));
+        $wpdb->query($wpdb->prepare("UPDATE %i SET from_email = '' WHERE from_email = %s", $this->transfers, $email));
+        $wpdb->query($wpdb->prepare("UPDATE %i SET to_email = '' WHERE to_email = %s", $this->transfers, $email));
 
         return $tickets;
     }
