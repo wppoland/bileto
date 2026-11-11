@@ -28,7 +28,7 @@
         "cs:fix": "phpcbf --standard=phpcs.xml.dist",
         "analyse": "phpstan analyse -c phpstan.neon.dist --memory-limit=2G",
         "test": "php tests/uninstall-check.php",
-        "prefix-namespaces": "strauss",
+        "prefix-namespaces": "test -x vendor/bin/strauss && vendor/bin/strauss || echo 'Strauss not installed (--no-dev): using the committed vendor-prefixed/'",
         "post-install-cmd": [
             "@prefix-namespaces"
         ],
