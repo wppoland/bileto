@@ -10,6 +10,7 @@ use Bileto\Contract\HasHooks;
 use Bileto\Email\Emails;
 use Bileto\Event\EventPostType;
 use Bileto\Front\TicketPage;
+use Bileto\Import\OrderImporter;
 use Bileto\Install\Schema;
 use Bileto\Product\TicketProduct;
 use Bileto\Tax\EventVat;
@@ -28,6 +29,8 @@ final class Plugin
     /** @var list<HasHooks> */
     private array $services;
 
+    private OrderImporter $importer;
+
     public static function instance(): self
     {
         if (self::$instance === null) {
@@ -42,6 +45,7 @@ final class Plugin
         $tickets = new TicketRepository();
         $service = new TicketService($tickets);
 
+        $this->importer = new OrderImporter($service);
         $this->services = [
             new EventPostType(),
             $service,
@@ -60,6 +64,9 @@ final class Plugin
         Schema::maybeUpgrade();
         foreach ($this->services as $service) {
             $service->registerHooks();
+        }
+        if (defined('WP_CLI') && WP_CLI) {
+            \WP_CLI::add_command('bileto import', $this->importer);
         }
     }
 }
