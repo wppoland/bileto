@@ -15,6 +15,14 @@ rsync -a --exclude-from="${ROOT_DIR}/.distignore" \
     --exclude '.git' --exclude 'node_modules' --exclude '.DS_Store' \
     "${ROOT_DIR}/" "${STAGE}/"
 
+# Runtime dependencies (QR library) ship in the zip, without dev tools.
+DEPS="$(mktemp -d)"
+cp "${ROOT_DIR}/composer.json" "${ROOT_DIR}/composer.lock" "${DEPS}/"
+mkdir -p "${DEPS}/src"
+composer install --no-dev --optimize-autoloader --no-interaction --quiet -d "${DEPS}"
+rm -rf "${STAGE}/vendor" && cp -R "${DEPS}/vendor" "${STAGE}/vendor"
+rm -rf "${DEPS}"
+
 find "${STAGE}" -name '.DS_Store' -delete
 
 rm -f "/tmp/${NAME}.zip"
