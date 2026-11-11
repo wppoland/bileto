@@ -51,7 +51,7 @@ add_action('plugins_loaded', static function (): void {
         return;
     }
 
-    if (! class_exists(\chillerlan\QRCode\QRCode::class)) {
+    if (! class_exists(\Bileto\Vendor\chillerlan\QRCode\QRCode::class)) {
         return;
     }
 

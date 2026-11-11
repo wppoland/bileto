@@ -15,11 +15,11 @@ rsync -a --exclude-from="${ROOT_DIR}/.distignore" \
     --exclude '.git' --exclude 'node_modules' --exclude '.DS_Store' \
     "${ROOT_DIR}/" "${STAGE}/"
 
-# Runtime dependencies (QR library) ship in the zip, without dev tools.
+# Own autoloader without dev tools; bundled libraries are already in vendor-prefixed/ (Strauss).
 DEPS="$(mktemp -d)"
 cp "${ROOT_DIR}/composer.json" "${ROOT_DIR}/composer.lock" "${DEPS}/"
-mkdir -p "${DEPS}/src"
-composer install --no-dev --optimize-autoloader --no-interaction --quiet -d "${DEPS}"
+mkdir -p "${DEPS}/src" && cp -R "${ROOT_DIR}/vendor-prefixed" "${DEPS}/vendor-prefixed"
+composer install --no-dev --no-scripts --optimize-autoloader --no-interaction --quiet -d "${DEPS}"
 rm -rf "${STAGE}/vendor" && cp -R "${DEPS}/vendor" "${STAGE}/vendor"
 rm -rf "${DEPS}"
 

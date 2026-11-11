@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Bileto;
 
-use chillerlan\QRCode\QRCode;
-use chillerlan\QRCode\QROptions;
+use Bileto\Vendor\chillerlan\QRCode\QRCode;
+use Bileto\Vendor\chillerlan\QRCode\QROptions;
 
 defined('ABSPATH') || exit;
 
@@ -22,7 +22,7 @@ final class Qr
             'outputBase64'   => false,
             'addQuietzone'   => true,
             'svgAddXmlHeader' => false,
-            'eccLevel'       => \chillerlan\QRCode\Common\EccLevel::M,
+            'eccLevel'       => \Bileto\Vendor\chillerlan\QRCode\Common\EccLevel::M,
         ])))->render($code);
     }
 
@@ -38,7 +38,7 @@ final class Qr
             'outputType'   => 'png',
             'outputBase64' => false,
             'scale'        => 8,
-            'eccLevel'     => \chillerlan\QRCode\Common\EccLevel::M,
+            'eccLevel'     => \Bileto\Vendor\chillerlan\QRCode\Common\EccLevel::M,
         ])))->render($code);
         header('Content-Type: image/png');
         echo $png; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- image body.
