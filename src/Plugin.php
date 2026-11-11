@@ -5,19 +5,22 @@ declare(strict_types=1);
 namespace Bileto;
 
 use Bileto\Contract\HasHooks;
+use Bileto\Event\EventPostType;
+use Bileto\Install\Schema;
+use Bileto\Product\TicketProduct;
+use Bileto\Tax\EventVat;
 
 defined('ABSPATH') || exit;
 
 /**
- * Main plugin coordinator for Bileto. Services are added per build stage
- * (see the plan): events, ticket products, tickets, transfer, check-in.
+ * Main plugin coordinator for Bileto.
  */
 final class Plugin
 {
     private static ?self $instance = null;
 
     /** @var list<HasHooks> */
-    private array $services = [];
+    private array $services;
 
     public static function instance(): self
     {
@@ -30,10 +33,16 @@ final class Plugin
 
     private function __construct()
     {
+        $this->services = [
+            new EventPostType(),
+            new TicketProduct(),
+            new EventVat(),
+        ];
     }
 
     public function boot(): void
     {
+        Schema::maybeUpgrade();
         foreach ($this->services as $service) {
             $service->registerHooks();
         }
