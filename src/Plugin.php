@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Bileto;
 
+use Bileto\Admin\PaymentsReport;
 use Bileto\Admin\TicketsScreen;
 use Bileto\Checkin\Checkin;
 use Bileto\Contract\HasHooks;
@@ -55,6 +56,7 @@ final class Plugin
             new Emails($tickets),
             new Checkin($tickets, $service),
             new TicketsScreen($tickets),
+            new PaymentsReport(),
             new Privacy($tickets),
         ];
     }
