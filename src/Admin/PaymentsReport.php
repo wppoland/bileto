@@ -135,8 +135,8 @@ final class PaymentsReport implements HasHooks
                         <td><?php echo wp_kses_post(wc_price($r['net'], ['currency' => $r['currency']])); ?></td>
                         <td><?php echo $r['pln'] === null ? '' : wp_kses_post(wc_price($r['pln'], ['currency' => 'PLN'])); ?></td>
                         <td><?php echo esc_html($r['method']); ?></td>
-                        <td><code><?php echo esc_html($r['transaction']); ?></code></td>
-                        <td><code><?php echo esc_html($r['intent']); ?></code></td>
+                        <td><?php echo $r['transaction'] === '' ? '' : '<code>' . esc_html($r['transaction']) . '</code>'; ?></td>
+                        <td><?php echo $r['intent'] === '' ? '' : '<code>' . esc_html($r['intent']) . '</code>'; ?></td>
                         <td><?php echo $r['settled_currency'] === '' ? '' : esc_html($r['fee'] . ' / ' . $r['settled'] . ' ' . $r['settled_currency']); ?></td>
                     </tr>
                 <?php endforeach; ?>
@@ -174,7 +174,7 @@ final class PaymentsReport implements HasHooks
     }
 
     /**
-     * Paid B2C orders with a payment date in [$from, $to] (site time, whole days),
+     * Paid B2C orders above zero with a payment date in [$from, $to] (site time, whole days),
      * oldest first. Fully refunded orders stay in, so the refund shows.
      *
      * @return list<array{order_id: int, order: string, date_paid: string, gross: float, refunded: float, net: float, currency: string, pln: ?float, method: string, transaction: string, intent: string, fee: string, settled: string, settled_currency: string}>
@@ -184,13 +184,15 @@ final class PaymentsReport implements HasHooks
         $orders = wc_get_orders([
             'type'      => 'shop_order',
             'status'    => array_merge(wc_get_is_paid_statuses(), ['refunded']),
-            'date_paid' => $from . '...' . $to,
+            // Epoch bounds in site time, so both order stores read the same whole days.
+            'date_paid' => (new \DateTimeImmutable($from . ' 00:00:00', wp_timezone()))->getTimestamp() . '...' . (new \DateTimeImmutable($to . ' 23:59:59', wp_timezone()))->getTimestamp(),
             'limit'     => -1,
         ]);
         $rows   = [];
         foreach ($orders as $order) {
             $paid = $order instanceof \WC_Order ? $order->get_date_paid() : null;
-            if ($paid === null || self::isBusiness($order)) {
+            // A free order (0.00) has no payment to prove.
+            if ($paid === null || (float) $order->get_total() <= 0 || self::isBusiness($order)) {
                 continue;
             }
             $gross    = (float) $order->get_total();
