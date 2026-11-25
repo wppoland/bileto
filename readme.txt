@@ -26,6 +26,8 @@ One-page ticket checkout (WooCommerce > Settings > Products > Bileto): the event
 == Changelog ==
 
 = Unreleased =
+* Changed: ticket list as plain boxes (name and price, quantity below), stepper as one segmented control.
+* Added: "Tickets in the summary" (off on the one-page checkout) and "Coupon field label". Labels above fields now cover selects too, and opening the coupon field no longer scrolls the page to it.
 * Added: Settings link on the Plugins screen.
 * Added: one-page ticket checkout with its settings under WooCommerce > Settings > Products > Bileto.
 * Added: [bileto_tickets] (ticket types with quantity buttons bound to the block cart, short description lines as points) and [bileto_event] (days, venue, description).

@@ -102,10 +102,10 @@ final class TicketPicker implements HasHooks
             $points = array_filter(array_map('trim', explode("\n", wp_strip_all_tags($product->get_short_description()))));
             $list   = $points !== [] ? '<ul class="bileto-picker__points"><li>' . implode('</li><li>', array_map('esc_html', $points)) . '</li></ul>' : '';
             $rows  .= sprintf(
-                '<li class="bileto-picker__row" data-product="%1$d" data-max="%2$d"><div class="bileto-picker__info"><span class="bileto-picker__name">%3$s</span><span class="bileto-picker__price">%4$s</span>%8$s</div>'
-                . '<div class="bileto-picker__qty"><button type="button" class="bileto-picker__step" data-step="-1" aria-label="%5$s">&minus;</button>'
+                '<li class="bileto-picker__row" data-product="%1$d" data-max="%2$d"><div class="bileto-picker__head"><span class="bileto-picker__name">%3$s</span><span class="bileto-picker__price">%4$s</span></div>%8$s'
+                . '<div class="bileto-picker__qty"><span class="bileto-picker__qty-label" aria-hidden="true">%9$s</span><div class="bileto-picker__stepper"><button type="button" class="bileto-picker__step" data-step="-1" aria-label="%5$s">&minus;</button>'
                 . '<output class="bileto-picker__count" aria-live="polite" aria-label="%6$s">0</output>'
-                . '<button type="button" class="bileto-picker__step" data-step="1" aria-label="%7$s">+</button></div></li>',
+                . '<button type="button" class="bileto-picker__step" data-step="1" aria-label="%7$s">+</button></div></div></li>',
                 $product->get_id(),
                 $max > 0 ? $max : 99,
                 esc_html($name),
@@ -116,7 +116,8 @@ final class TicketPicker implements HasHooks
                 esc_attr(sprintf(__('%s quantity', 'bileto'), $name)),
                 /* translators: %s: ticket name */
                 esc_attr(sprintf(__('Add one %s', 'bileto'), $name)),
-                $list
+                $list,
+                esc_html__('Quantity', 'bileto')
             );
         }
 
