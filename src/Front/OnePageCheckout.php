@@ -37,6 +37,7 @@ final class OnePageCheckout implements HasHooks
         'bileto_checkout_labels'      => 'yes',
         'bileto_checkout_pay_total'   => 'yes',
         'bileto_line_event'           => 'yes',
+        'bileto_onepage_note'         => '',
     ];
 
     /** @return array<string, array{0: string, 1: string}> Option name => [label, description]. */
@@ -55,6 +56,7 @@ final class OnePageCheckout implements HasHooks
             'bileto_checkout_coupon_open' => [__('Coupon field open', 'bileto'), __('Show the coupon field with its Apply button instead of a link that opens it.', 'bileto')],
             'bileto_checkout_labels'      => [__('Labels above fields', 'bileto'), __('Field labels stay above the input instead of inside it.', 'bileto')],
             'bileto_checkout_pay_total'   => [__('Total on the pay button', 'bileto'), __('The place-order button reads "Pay" and the order total.', 'bileto')],
+            'bileto_onepage_note'         => [__('Note under the pay button', 'bileto'), __('Short lines shown under the form, e.g. secure payment and the refund rules with a link. One line per row; links allowed.', 'bileto')],
             'bileto_line_event'           => [__('Event in order lines', 'bileto'), __('Order, invoice and e-mail lines read "Event - Ticket" when the ticket name lacks the event.', 'bileto')],
         ];
     }
@@ -112,7 +114,10 @@ final class OnePageCheckout implements HasHooks
         foreach (self::texts() as $id => [$label, $desc]) {
             $default = self::DEFAULTS[$id];
             $field   = ['id' => $id, 'title' => $label, 'desc' => $desc, 'default' => $default];
-            if ($id === 'bileto_onepage_layout') {
+            if ($id === 'bileto_onepage_note') {
+                $field['type'] = 'textarea';
+                $field['css']  = 'min-height: 6em;';
+            } elseif ($id === 'bileto_onepage_layout') {
                 $field += ['type' => 'select', 'options' => ['columns' => __('Two columns', 'bileto'), 'stacked' => __('Tickets above the form', 'bileto')]];
             } elseif ($default === 'yes' || $default === 'no') {
                 $field['type'] = 'checkbox';
@@ -139,6 +144,8 @@ final class OnePageCheckout implements HasHooks
             $offer .= do_shortcode('[bileto_event id="' . $event . '"]');
         }
         $offer .= do_shortcode('[bileto_tickets]');
+        $lines  = array_filter(array_map('trim', explode("\n", self::get('bileto_onepage_note'))));
+        $note   = $lines !== [] ? '<ul class="bileto-onepage__note"><li>' . implode('</li><li>', array_map('wp_kses_post', $lines)) . '</li></ul>' : '';
 
         return '<div class="bileto-onepage bileto-onepage--' . esc_attr(self::get('bileto_onepage_layout')) . '"><aside class="bileto-onepage__offer">' . $offer . '</aside><div class="bileto-onepage__form">' . $html . '</div></div>';
     }
