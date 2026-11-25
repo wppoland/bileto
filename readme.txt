@@ -16,7 +16,7 @@ Bileto turns WooCommerce products into event tickets. WooCommerce keeps the cart
 
 The B2C payments report lists every paid order of a private buyer (no NIP or EU VAT ID) in a month, quarter, year or custom range, with refunds, the gateway transaction ID and the Stripe fee and net stored on the order, plus totals and a CSV export. It is evidence that each sale to a consumer was paid through a bank or payment institution. Filter `bileto_buyer_is_business` decides who counts as a business.
 
-The [bileto_tickets] shortcode lists ticket types with quantity buttons that edit the cart in place. Put it above the Checkout block and the purchase fits on one page: an empty cart gets one seat of the cheapest ticket, the order summary follows each change. Optional attribute event="ID" limits it to one event. Add `add_filter( 'woocommerce_checkout_redirect_empty_cart', '__return_false' );` so an empty cart is not sent to the cart page.
+One-page ticket checkout (WooCommerce > Settings > Products > Bileto): the event (days, venue, a description with "Read more") and the tickets with quantity buttons sit next to the Checkout block, in two columns or above the form. An empty cart gets one seat of the cheapest ticket, and the home page can open checkout. Each checkout touch is its own switch: "2 x Regular" in the order summary, the coupon field always open, labels above fields, the order total on the pay button, the event name on order and invoice lines. The [bileto_tickets] and [bileto_event] shortcodes place the same parts anywhere.
 
 == Third-party libraries ==
 
@@ -26,7 +26,9 @@ The [bileto_tickets] shortcode lists ticket types with quantity buttons that edi
 == Changelog ==
 
 = Unreleased =
-* Added: [bileto_tickets] shortcode, ticket types with quantity buttons bound to the block cart, for a one-page checkout.
+* Added: one-page ticket checkout with its settings under WooCommerce > Settings > Products > Bileto.
+* Added: [bileto_tickets] (ticket types with quantity buttons bound to the block cart, short description lines as points) and [bileto_event] (days, venue, description).
+* Added: ticket order lines carry the event name, so a ticket can be named "Regular" in the shop.
 
 = 0.1.0 =
 * Added: events and ticket products, with their own tables and a VAT rule by event country.

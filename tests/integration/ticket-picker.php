@@ -29,5 +29,20 @@ bileto_test_assert(substr_count($html, 'bileto-picker__row') === 2, 'one row per
 bileto_test_assert(str_contains($html, 'data-product="' . $blind->get_id() . '"'), 'row carries the product ID');
 bileto_test_assert(do_shortcode('[bileto_tickets event="999999999"]') === '', 'no markup without tickets');
 
+update_post_meta($event, '_bileto_start', '2027-09-23T09:00');
+update_post_meta($event, '_bileto_end', '2027-09-25T18:00');
+bileto_test_assert(str_ends_with(Bileto\Event\EventPostType::days($event), '2027') && str_starts_with(Bileto\Event\EventPostType::days($event), '23-25 '), 'days in one month read "23-25 Month 2027"');
+update_post_meta($other, '_bileto_start', '2027-09-30T09:00');
+update_post_meta($other, '_bileto_end', '2027-10-02T18:00');
+bileto_test_assert(substr_count(Bileto\Event\EventPostType::days($other), ' - ') === 1, 'days across months use " - "');
+bileto_test_assert(str_contains(do_shortcode('[bileto_event id="' . $event . '"]'), 'bileto-event__facts'), 'event shortcode prints days and venue');
+
+$item = new WC_Order_Item_Product();
+$item->set_name($blind->get_name());
+(new Bileto\Product\TicketProduct())->nameOrderLine($item, 'k', ['data' => $blind]);
+bileto_test_assert($item->get_name() === 'Bileto test event - Bileto test ticket', 'order line carries the event name');
+(new Bileto\Product\TicketProduct())->nameOrderLine($item, 'k', ['data' => $blind]);
+bileto_test_assert($item->get_name() === 'Bileto test event - Bileto test ticket', 'event name added once');
+
 bileto_test_cleanup();
 bileto_test_done();

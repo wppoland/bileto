@@ -125,6 +125,32 @@ final class EventPostType implements HasHooks
         return implode(' - ', $parts);
     }
 
+    /** Event days for buyers, e.g. "23-25 September 2027", "30 September - 2 October 2027" or "23 September 2027". */
+    public static function days(int $eventId): string
+    {
+        $first = (string) get_post_meta($eventId, '_bileto_start', true);
+        $last  = (string) get_post_meta($eventId, '_bileto_end', true);
+        try {
+            $start = new \DateTimeImmutable($first, wp_timezone());
+            $end   = $last !== '' ? new \DateTimeImmutable($last, wp_timezone()) : $start;
+        } catch (\Exception $e) {
+            return '';
+        }
+        if ($first === '') {
+            return '';
+        }
+        $s = $start->getTimestamp();
+        $e = $end->getTimestamp();
+        if ($start->format('Y-m-d') === $end->format('Y-m-d')) {
+            return wp_date('j F Y', $s);
+        }
+        if ($start->format('Y-m') === $end->format('Y-m')) {
+            return wp_date('j', $s) . '-' . wp_date('j F Y', $e);
+        }
+
+        return wp_date($start->format('Y') === $end->format('Y') ? 'j F' : 'j F Y', $s) . ' - ' . wp_date('j F Y', $e);
+    }
+
     public static function venue(int $eventId): string
     {
         return trim((string) get_post_meta($eventId, '_bileto_venue', true) . ', ' . (string) get_post_meta($eventId, '_bileto_address', true), ', ');
