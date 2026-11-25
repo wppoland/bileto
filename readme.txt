@@ -28,6 +28,8 @@ One-page ticket checkout (WooCommerce > Settings > Products > Bileto): the event
 = Unreleased =
 * Added: one-page ticket checkout with its settings under WooCommerce > Settings > Products > Bileto.
 * Added: [bileto_tickets] (ticket types with quantity buttons bound to the block cart, short description lines as points) and [bileto_event] (days, venue, description).
+* Added: attendee reminder e-mail. A paid order with seats that have no attendee gets a reminder every few days (default 3, set in the e-mail's settings) until every seat is filled in or the event starts.
+* Added: note under the pay button on the one-page checkout (secure payment, refund rules).
 * Added: ticket order lines carry the event name, so a ticket can be named "Regular" in the shop.
 
 = 0.1.0 =

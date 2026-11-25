@@ -13,7 +13,9 @@ defined('ABSPATH') || exit;
 /**
  * Registers the ticket e-mails through WooCommerce's own e-mail actions
  * (lazy mailer, optional background sending) and adds the "assign attendees"
- * link to the buyer's order e-mails.
+ * link to the buyer's order e-mails. A daily check sends the attendee
+ * reminder for paid orders with empty seats, every few days (the interval is
+ * a field of that e-mail) until they are filled in or the event starts.
  */
 final class Emails implements HasHooks
 {
@@ -26,6 +28,40 @@ final class Emails implements HasHooks
         add_filter('woocommerce_email_classes', [$this, 'register']);
         add_filter('woocommerce_email_actions', [$this, 'actions']);
         add_action('woocommerce_email_after_order_table', [$this, 'assignLink'], 10, 4);
+        add_action(self::CRON, [$this, 'remindAttendees']);
+        add_action('init', static function (): void {
+            if (! wp_next_scheduled(self::CRON)) {
+                wp_schedule_event(time() + HOUR_IN_SECONDS, 'daily', self::CRON);
+            }
+        });
+    }
+
+    public const CRON = 'bileto_attendee_reminders';
+
+    private const REMINDED = '_bileto_attendees_reminded';
+
+    public function remindAttendees(): void
+    {
+        $email = WC()->mailer()->get_emails()['bileto_attendee_reminder'] ?? null;
+        if (! $email instanceof AttendeeReminderEmail || ! $email->is_enabled()) {
+            return;
+        }
+        $wait = $email->interval() * DAY_IN_SECONDS;
+        foreach ($this->repo->openSeats() as $orderId => $seats) {
+            $order = wc_get_order($orderId);
+            $start = strtotime((string) get_post_meta($seats['event_id'], '_bileto_start', true));
+            // Only for events still ahead: an event without a date, or one already started, gets no reminders.
+            if (! $order instanceof \WC_Order || ! $order->is_paid() || $start === false || $start <= time()) {
+                continue;
+            }
+            $last = (int) $order->get_meta(self::REMINDED) ?: (int) $order->get_date_paid()?->getTimestamp();
+            if ($last === 0 || time() - $last < $wait) {
+                continue;
+            }
+            do_action('bileto_attendee_reminder', $orderId, $seats['open'], get_the_title($seats['event_id']));
+            $order->update_meta_data(self::REMINDED, (string) time());
+            $order->save_meta_data();
+        }
     }
 
     /**
@@ -36,6 +72,7 @@ final class Emails implements HasHooks
     {
         $emails['bileto_ticket']      = new TicketEmail($this->repo);
         $emails['bileto_transferred'] = new TransferNoticeEmail();
+        $emails['bileto_attendee_reminder'] = new AttendeeReminderEmail();
 
         return $emails;
     }
@@ -46,7 +83,7 @@ final class Emails implements HasHooks
      */
     public function actions($actions): array
     {
-        return array_merge((array) $actions, ['bileto_issued', 'bileto_assigned', 'bileto_transferred']);
+        return array_merge((array) $actions, ['bileto_issued', 'bileto_assigned', 'bileto_transferred', 'bileto_attendee_reminder']);
     }
 
     /**

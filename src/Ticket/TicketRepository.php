@@ -92,6 +92,24 @@ final class TicketRepository
         return $wpdb->get_results($wpdb->prepare("SELECT * FROM %i WHERE order_id = %d ORDER BY id", $this->tickets, $orderId), ARRAY_A) ?: [];
     }
 
+    /**
+     * Orders with valid seats that still have no attendee.
+     *
+     * @return array<int, array{open: int, event_id: int}> Order ID => open seats and their event.
+     */
+    public function openSeats(): array
+    {
+        global $wpdb;
+
+        $rows = $wpdb->get_results($wpdb->prepare("SELECT order_id, MIN(event_id) AS event_id, COUNT(*) AS open FROM %i WHERE email = '' AND status = 'valid' GROUP BY order_id", $this->tickets), ARRAY_A) ?: []; // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $open = [];
+        foreach ($rows as $row) {
+            $open[(int) $row['order_id']] = ['open' => (int) $row['open'], 'event_id' => (int) $row['event_id']];
+        }
+
+        return $open;
+    }
+
     /** @return list<Ticket> */
     public function forItem(int $itemId): array
     {

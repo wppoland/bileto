@@ -24,9 +24,11 @@ function bileto_uninstall_site(): void {
 		wp_delete_post( (int) get_option( 'bileto_page_id' ), true );
 	}
 
-	foreach ( array( 'bileto_db_version', 'bileto_page_id', 'bileto_delete_data' ) as $bileto_option ) {
+	foreach ( array( 'bileto_db_version', 'bileto_page_id', 'bileto_delete_data', 'woocommerce_bileto_attendee_reminder_settings' ) as $bileto_option ) {
 		delete_option( $bileto_option );
 	}
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'bileto\\_onepage%' OR option_name LIKE 'bileto\\_checkout\\_%' OR option_name = 'bileto_line_event'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- one-page checkout settings.
+	wp_clear_scheduled_hook( 'bileto_attendee_reminders' );
 	remove_role( 'bileto_checkin' );
 	foreach ( array( 'administrator', 'shop_manager' ) as $bileto_role ) {
 		$bileto_role_object = get_role( $bileto_role );
