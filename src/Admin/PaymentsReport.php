@@ -187,10 +187,12 @@ final class PaymentsReport implements HasHooks
             // Epoch bounds in site time, so both order stores read the same whole days.
             'date_paid' => (new \DateTimeImmutable($from . ' 00:00:00', wp_timezone()))->getTimestamp() . '...' . (new \DateTimeImmutable($to . ' 23:59:59', wp_timezone()))->getTimestamp(),
             'limit'     => -1,
+            'return'    => 'ids',
         ]);
         $rows   = [];
-        foreach ($orders as $order) {
-            $paid = $order instanceof \WC_Order ? $order->get_date_paid() : null;
+        foreach ($orders as $orderId) {
+            $order = wc_get_order($orderId);
+            $paid  = $order instanceof \WC_Order ? $order->get_date_paid() : null;
             // A free order (0.00) has no payment to prove.
             if ($paid === null || (float) $order->get_total() <= 0 || self::isBusiness($order)) {
                 continue;
