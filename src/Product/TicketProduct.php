@@ -24,6 +24,7 @@ final class TicketProduct implements HasHooks
         add_action('woocommerce_product_options_general_product_data', [$this, 'renderFields']);
         add_action('woocommerce_admin_process_product_object', [$this, 'save']);
         add_filter('woocommerce_add_to_cart_validation', [$this, 'preventMixedCart'], 10, 2);
+        add_action('woocommerce_checkout_create_order_line_item', [$this, 'nameOrderLine'], 10, 3);
     }
 
     public static function isTicket(?\WC_Product $product): bool
@@ -75,6 +76,27 @@ final class TicketProduct implements HasHooks
         $product->update_meta_data(self::IS_TICKET, isset($_POST[self::IS_TICKET]) ? 'yes' : 'no');
         $product->update_meta_data(self::EVENT, isset($_POST[self::EVENT]) ? (string) absint($_POST[self::EVENT]) : '0');
         // phpcs:enable
+    }
+
+    /**
+     * A ticket can be named for the shop ("Regular") while the order, the
+     * invoice and the ticket e-mail need the event too: the order line becomes
+     * "CMS Conf 2027 - Regular" unless the name already holds the event title.
+     *
+     * @param \WC_Order_Item_Product $item
+     * @param string                 $cartKey
+     * @param array<string, mixed>   $values
+     */
+    public function nameOrderLine($item, $cartKey, $values): void
+    {
+        $product = $values['data'] ?? null;
+        if (! \Bileto\Front\OnePageCheckout::on('bileto_line_event') || ! $product instanceof \WC_Product || ! self::isTicket($product)) {
+            return;
+        }
+        $event = get_the_title(self::eventId($product));
+        if ($event !== '' && ! str_contains($item->get_name(), $event)) {
+            $item->set_name($event . ' - ' . $item->get_name());
+        }
     }
 
     /**

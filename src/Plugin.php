@@ -10,6 +10,7 @@ use Bileto\Checkin\Checkin;
 use Bileto\Contract\HasHooks;
 use Bileto\Email\Emails;
 use Bileto\Event\EventPostType;
+use Bileto\Front\OnePageCheckout;
 use Bileto\Front\TicketPage;
 use Bileto\Front\TicketPicker;
 use Bileto\Import\OrderImporter;
@@ -55,6 +56,7 @@ final class Plugin
             new EventVat(),
             new TicketPage($tickets, $service),
             new TicketPicker(),
+            new OnePageCheckout(),
             new Emails($tickets),
             new Checkin($tickets, $service),
             new TicketsScreen($tickets),

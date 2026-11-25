@@ -1,7 +1,23 @@
 /*
  * [bileto_tickets]: quantity steppers bound to the WooCommerce cart data store.
+ * [bileto_event]: the description's "Read more".
  * existing-checked: assets/checkin.js - check-in scanner script, loaded only on the admin check-in screen.
  */
+( function () {
+	// [bileto_event]: "Read more" shows only when the clamped description actually hides text.
+	document.querySelectorAll( '.bileto-event__more' ).forEach( function ( button ) {
+		var about = document.getElementById( button.getAttribute( 'aria-controls' ) );
+		button.hidden = about.scrollHeight <= about.clientHeight + 1;
+		about.classList.toggle( 'is-clamped', ! button.hidden );
+		button.addEventListener( 'click', function () {
+			var open = button.getAttribute( 'aria-expanded' ) !== 'true';
+			button.setAttribute( 'aria-expanded', String( open ) );
+			about.classList.toggle( 'is-open', open );
+			button.hidden = open;
+		} );
+	} );
+} )();
+
 ( function () {
 	var data = window.wp && window.wp.data;
 	var store = window.wc && window.wc.wcBlocksData && window.wc.wcBlocksData.cartStore;
@@ -79,10 +95,61 @@
 		}
 		started = true;
 		stop();
-		if ( seats() === 0 ) {
+		if ( seats() === 0 && ( ! window.biletoCheckout || window.biletoCheckout.preselect ) ) {
 			change( Number( pickers[ 0 ].querySelector( '.bileto-picker__row' ).dataset.product ), 1 );
 		}
 	}, store );
 	data.select( store ).getCartData();
 	paint();
+} )();
+
+/* Checkout touches switched on in WooCommerce > Settings > Products > Bileto (window.biletoCheckout). */
+( function () {
+	var opts = window.biletoCheckout;
+	var blocks = window.wc && window.wc.blocksCheckout;
+	var data = window.wp && window.wp.data;
+	if ( ! opts || ! blocks || ! blocks.registerCheckoutFilters ) {
+		return;
+	}
+	var filters = {};
+	if ( opts.qtyNames ) {
+		filters.itemName = function ( name, extensions, args ) {
+			return args && args.context === 'summary' && args.cartItem ? args.cartItem.quantity + ' \u00d7 ' + name : name;
+		};
+	}
+	var payLabel = function ( label ) {
+		var cart = data.select( 'wc/store/cart' );
+		var totals = cart.getCartTotals();
+		if ( ! cart.hasFinishedResolution( 'getCartData' ) || ! totals || ! Number( totals.total_price ) ) {
+			return label;
+		}
+		var minor = totals.currency_minor_unit;
+		var amount = ( Number( totals.total_price ) / Math.pow( 10, minor ) ).toFixed( minor ).replace( '.', totals.currency_decimal_separator );
+		return opts.payLabel.replace( '%s', totals.currency_prefix + amount + totals.currency_suffix );
+	};
+	if ( opts.payLabel ) {
+		filters.placeOrderButtonLabel = payLabel;
+	}
+	// Registered once every footer script ran, so it applies after other plugins' labels (Polski sets one too).
+	document.addEventListener( 'DOMContentLoaded', function () {
+		blocks.registerCheckoutFilters( 'bileto', filters );
+	} );
+
+	// The button asks the label filter only when it re-renders, and the coupon panel renders its field
+	// only once opened, so both are kept in step from DOM changes (cart loads, quantity edits, re-renders).
+	var sync = function () {
+		var text = opts.payLabel && document.querySelector( '.wc-block-components-checkout-place-order-button__text' );
+		if ( text && text.textContent !== payLabel( text.textContent ) ) {
+			text.textContent = payLabel( text.textContent );
+		}
+		var toggle = opts.coupon && document.querySelector( '.wc-block-components-totals-coupon .wc-block-components-panel__button[aria-expanded="false"]' );
+		if ( toggle && ! toggle.dataset.biletoOpened ) {
+			toggle.dataset.biletoOpened = '1';
+			toggle.click();
+		}
+	};
+	if ( opts.payLabel || opts.coupon ) {
+		new MutationObserver( sync ).observe( document.body, { childList: true, subtree: true, characterData: true } );
+		data.subscribe( sync, 'wc/store/cart' );
+	}
 } )();
