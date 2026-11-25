@@ -26,6 +26,10 @@ One-page ticket checkout (WooCommerce > Settings > Products > Bileto): the event
 == Changelog ==
 
 = Unreleased =
+* Changed: quantity buttons answer at once; the cart gets one request per ticket type after the clicks stop, instead of one per click with the buttons locked.
+* Fixed: an empty cart did not always get its preselected ticket when the cart had loaded before the script.
+* Fixed: CSS and JS versioned by file time, so browsers drop cached copies after an update.
+* Fixed: select chevron position with labels above fields.
 * Changed: ticket list as plain boxes (name and price, quantity below), stepper as one segmented control.
 * Added: "Tickets in the summary" (off on the one-page checkout) and "Coupon field label". Labels above fields now cover selects too, and opening the coupon field no longer scrolls the page to it.
 * Added: Settings link on the Plugins screen.

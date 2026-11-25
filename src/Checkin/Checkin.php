@@ -102,8 +102,8 @@ final class Checkin implements HasHooks
         if ($hook !== 'toplevel_page_' . self::SLUG) {
             return;
         }
-        wp_enqueue_style('bileto-checkin', plugins_url('assets/checkin.css', \Bileto\PLUGIN_FILE), [], \Bileto\VERSION);
-        wp_enqueue_script('bileto-checkin', plugins_url('assets/checkin.js', \Bileto\PLUGIN_FILE), ['wp-api-fetch', 'wp-i18n'], \Bileto\VERSION, true);
+        wp_enqueue_style('bileto-checkin', plugins_url('assets/checkin.css', \Bileto\PLUGIN_FILE), [], \Bileto\asset_version('checkin.css'));
+        wp_enqueue_script('bileto-checkin', plugins_url('assets/checkin.js', \Bileto\PLUGIN_FILE), ['wp-api-fetch', 'wp-i18n'], \Bileto\asset_version('checkin.js'), true);
         wp_set_script_translations('bileto-checkin', 'bileto');
     }
 

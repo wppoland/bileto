@@ -33,6 +33,18 @@ define('BILETO_URL', plugin_dir_url(__FILE__));
 
 require_once __DIR__ . '/autoload.php';
 
+/**
+ * Cache-busting version for a file in assets/: the plugin version plus the
+ * file's modification time, so a deploy that changes a file without a version
+ * bump (rsync from main) still reaches browsers that cached the old one.
+ */
+function asset_version(string $file): string
+{
+    $path = BILETO_DIR . 'assets/' . $file;
+
+    return file_exists($path) ? VERSION . '.' . filemtime($path) : VERSION;
+}
+
 // Declare HPOS and checkout block compatibility.
 add_action('before_woocommerce_init', static function (): void {
     if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {

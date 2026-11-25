@@ -25,7 +25,12 @@
 	if ( ! data || ! store || ! pickers.length ) {
 		return;
 	}
-	var busy = false;
+	// Clicks change a local count at once; the cart gets one request per ticket
+	// type once the clicks stop (Store API round trips take half a second).
+	var wanted = {}; // Product ID => quantity clicked but not yet in the cart.
+	var timers = {};
+	var inFlight = {};
+	var WAIT = 350;
 
 	function items() {
 		return data.select( store ).getCartData().items || [];
@@ -33,15 +38,22 @@
 	function itemFor( id ) {
 		return items().find( function ( item ) { return item.id === id; } );
 	}
-	function seats() {
-		return items().reduce( function ( sum, item ) { return sum + item.quantity; }, 0 );
+	function cartQty( id ) {
+		var item = itemFor( id );
+		return item ? item.quantity : 0;
+	}
+	function qtyOf( id ) {
+		return wanted.hasOwnProperty( id ) ? wanted[ id ] : cartQty( id );
 	}
 
 	function paint() {
-		var total = seats();
-		document.querySelectorAll( '.bileto-picker__row' ).forEach( function ( row ) {
-			var item = itemFor( Number( row.dataset.product ) );
-			var qty = item ? item.quantity : 0;
+		var rows = document.querySelectorAll( '.bileto-picker__row' );
+		var total = 0;
+		rows.forEach( function ( row ) {
+			total += qtyOf( Number( row.dataset.product ) );
+		} );
+		rows.forEach( function ( row ) {
+			var qty = qtyOf( Number( row.dataset.product ) );
 			var count = row.querySelector( '.bileto-picker__count' );
 			if ( count.textContent !== String( qty ) ) {
 				count.textContent = qty;
@@ -51,28 +63,60 @@
 			}
 			row.classList.toggle( 'is-selected', qty > 0 );
 			// The last seat stays: the Checkout block shows no form for an empty cart.
-			row.querySelector( '[data-step="-1"]' ).disabled = busy || qty === 0 || total <= 1;
-			row.querySelector( '[data-step="1"]' ).disabled = busy || qty >= Number( row.dataset.max );
+			row.querySelector( '[data-step="-1"]' ).disabled = qty === 0 || total <= 1;
+			row.querySelector( '[data-step="1"]' ).disabled = qty >= Number( row.dataset.max );
 		} );
 	}
 
-	function run( promise ) {
-		busy = true;
-		paint();
-		Promise.resolve( promise ).catch( function () {} ).then( function () {
-			busy = false;
+	function flush( id ) {
+		if ( inFlight[ id ] ) {
+			// One request per ticket type at a time; the newest count goes when it returns.
+			timers[ id ] = setTimeout( function () { flush( id ); }, WAIT );
+			return;
+		}
+		if ( ! wanted.hasOwnProperty( id ) ) {
+			return;
+		}
+		var qty = wanted[ id ];
+		var item = itemFor( id );
+		var actions = data.dispatch( store );
+		var request;
+		if ( item && qty === item.quantity ) {
+			delete wanted[ id ];
+			paint();
+			return;
+		}
+		if ( ! item ) {
+			request = qty > 0 ? actions.addItemToCart( id, qty ) : null;
+		} else {
+			request = qty > 0 ? actions.changeCartItemQuantity( item.key, qty ) : actions.removeItemFromCart( item.key );
+		}
+		if ( ! request ) {
+			delete wanted[ id ];
+			paint();
+			return;
+		}
+		inFlight[ id ] = true;
+		Promise.resolve( request ).catch( function () {} ).then( function () {
+			inFlight[ id ] = false;
+			// Done unless a newer count was clicked meanwhile; a refused change then shows the cart's count.
+			if ( wanted[ id ] === qty ) {
+				delete wanted[ id ];
+			}
 			paint();
 		} );
 	}
 
-	function change( id, step ) {
-		var item = itemFor( id );
-		var actions = data.dispatch( store );
-		if ( ! item ) {
-			return run( actions.addItemToCart( id, 1 ) );
+	function change( id, step, now ) {
+		var max = Number( document.querySelector( '.bileto-picker__row[data-product="' + id + '"]' ).dataset.max );
+		wanted[ id ] = Math.max( 0, Math.min( max, qtyOf( id ) + step ) );
+		paint();
+		clearTimeout( timers[ id ] );
+		if ( now ) {
+			flush( id );
+			return;
 		}
-		var qty = item.quantity + step;
-		run( qty > 0 ? actions.changeCartItemQuantity( item.key, qty ) : actions.removeItemFromCart( item.key ) );
+		timers[ id ] = setTimeout( function () { flush( id ); }, WAIT );
 	}
 
 	pickers.forEach( function ( picker ) {
@@ -88,18 +132,21 @@
 	data.subscribe( paint, store );
 
 	// After the first cart load, an empty cart gets one seat of the first ticket.
+	// The cart may already be loaded (hydrated) when this runs, so check once now too.
 	var started = false;
-	var stop = data.subscribe( function () {
+	function preselect() {
 		if ( started || ! data.select( store ).hasFinishedResolution( 'getCartData' ) ) {
 			return;
 		}
 		started = true;
 		stop();
-		if ( seats() === 0 && ( ! window.biletoCheckout || window.biletoCheckout.preselect ) ) {
-			change( Number( pickers[ 0 ].querySelector( '.bileto-picker__row' ).dataset.product ), 1 );
+		if ( items().length === 0 && ( ! window.biletoCheckout || window.biletoCheckout.preselect ) ) {
+			change( Number( pickers[ 0 ].querySelector( '.bileto-picker__row' ).dataset.product ), 1, true );
 		}
-	}, store );
+	}
+	var stop = data.subscribe( preselect, store );
 	data.select( store ).getCartData();
+	preselect();
 	paint();
 } )();
 

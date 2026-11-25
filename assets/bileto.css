@@ -180,7 +180,8 @@ body.bileto-labels-above .wc-blocks-components-select__label {
 	line-height: 1.3;
 }
 body.bileto-labels-above .wc-blocks-components-select__select { padding-top: 0 !important; padding-bottom: 0 !important; height: 50px; }
-body.bileto-labels-above .wc-blocks-components-select__expand { top: auto !important; bottom: 13px; }
+/* WooCommerce centres the chevron with top: 50% and translateY(-50%); with the label above, that lands too high. */
+body.bileto-labels-above .wc-blocks-components-select .wc-blocks-components-select__expand { top: auto !important; bottom: 13px; transform: none; }
 /* The first field of a step sits right under the heading, like every other step. */
 body.bileto-labels-above .wc-block-components-checkout-step__content > .wc-block-components-address-form > :first-child,
 body.bileto-labels-above .wc-block-components-checkout-step__content .wc-block-components-address-address-wrapper .wc-block-components-address-form > :first-child { margin-top: 0; }
