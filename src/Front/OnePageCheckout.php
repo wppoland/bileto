@@ -65,6 +65,7 @@ final class OnePageCheckout implements HasHooks
     {
         add_filter('woocommerce_get_sections_products', [$this, 'section']);
         add_filter('woocommerce_get_settings_products', [$this, 'settings'], 10, 2);
+        add_filter('plugin_action_links_' . plugin_basename(\Bileto\PLUGIN_FILE), [$this, 'settingsLink']);
 
         if (self::on('bileto_onepage')) {
             add_filter('render_block_woocommerce/checkout', [$this, 'wrapCheckout']);
@@ -88,6 +89,20 @@ final class OnePageCheckout implements HasHooks
     public static function on(string $option): bool
     {
         return self::get($option) === 'yes';
+    }
+
+    /**
+     * "Settings" next to Deactivate on the Plugins screen.
+     *
+     * @param array<int|string, string> $links
+     * @return array<int|string, string>
+     */
+    public function settingsLink(array $links): array
+    {
+        $url = admin_url('admin.php?page=wc-settings&tab=products&section=' . self::SECTION);
+        array_unshift($links, '<a href="' . esc_url($url) . '">' . esc_html__('Settings', 'bileto') . '</a>');
+
+        return $links;
     }
 
     /**
