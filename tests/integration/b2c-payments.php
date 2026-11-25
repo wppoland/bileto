@@ -26,6 +26,8 @@ $make = static function (string $paid, array $meta = [], string $status = 'proce
         $order->update_meta_data($key, $value);
     }
     $order->calculate_totals();
+    // Fixed gross, so the amounts below hold with or without tax rates on the site.
+    $order->set_total('123');
     $order->set_status($status);
     if ($paid !== '') {
         $order->set_date_paid((new DateTimeImmutable(strlen($paid) > 10 ? $paid : $paid . ' 12:00', wp_timezone()))->getTimestamp());
