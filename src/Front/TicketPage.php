@@ -65,7 +65,7 @@ final class TicketPage implements HasHooks
         if (! is_page((int) get_option(self::PAGE_OPTION)) && ! is_wc_endpoint_url('order-received')) {
             return;
         }
-        wp_enqueue_style('bileto', plugins_url('assets/bileto.css', \Bileto\PLUGIN_FILE), [], \Bileto\VERSION);
+        wp_enqueue_style('bileto', plugins_url('assets/bileto.css', \Bileto\PLUGIN_FILE), [], \Bileto\asset_version('bileto.css'));
     }
 
     public function serveQr(): void

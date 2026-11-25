@@ -39,7 +39,7 @@ final class TicketPicker implements HasHooks
      */
     public static function enqueueScript(): void
     {
-        wp_enqueue_script('bileto-picker', plugins_url('assets/picker.js', \Bileto\PLUGIN_FILE), ['wp-data', 'wc-blocks-data-store', 'wc-blocks-checkout'], \Bileto\VERSION, true);
+        wp_enqueue_script('bileto-picker', plugins_url('assets/picker.js', \Bileto\PLUGIN_FILE), ['wp-data', 'wc-blocks-data-store', 'wc-blocks-checkout'], \Bileto\asset_version('picker.js'), true);
     }
 
     /** @param array<string, string>|string $atts */
@@ -50,7 +50,7 @@ final class TicketPicker implements HasHooks
         if ($event === 0 || get_post_type($event) !== EventPostType::POST_TYPE) {
             return '';
         }
-        wp_enqueue_style('bileto', plugins_url('assets/bileto.css', \Bileto\PLUGIN_FILE), [], \Bileto\VERSION);
+        wp_enqueue_style('bileto', plugins_url('assets/bileto.css', \Bileto\PLUGIN_FILE), [], \Bileto\asset_version('bileto.css'));
 
         $facts = array_filter([EventPostType::days($event), EventPostType::venue($event)]);
         $html  = $facts !== [] ? '<p class="bileto-event__facts">' . esc_html(implode(' · ', $facts)) . '</p>' : '';
@@ -92,7 +92,7 @@ final class TicketPicker implements HasHooks
             return '';
         }
 
-        wp_enqueue_style('bileto', plugins_url('assets/bileto.css', \Bileto\PLUGIN_FILE), [], \Bileto\VERSION);
+        wp_enqueue_style('bileto', plugins_url('assets/bileto.css', \Bileto\PLUGIN_FILE), [], \Bileto\asset_version('bileto.css'));
         self::enqueueScript();
 
         $rows = '';
