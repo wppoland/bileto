@@ -33,7 +33,9 @@ final class OnePageCheckout implements HasHooks
         'bileto_onepage_home'         => 'no',
         'bileto_onepage_quiet_add'    => 'yes',
         'bileto_checkout_qty_names'   => 'yes',
+        'bileto_checkout_summary_items' => 'no',
         'bileto_checkout_coupon_open' => 'yes',
+        'bileto_checkout_coupon_label' => '',
         'bileto_checkout_labels'      => 'yes',
         'bileto_checkout_pay_total'   => 'yes',
         'bileto_line_event'           => 'yes',
@@ -53,6 +55,8 @@ final class OnePageCheckout implements HasHooks
             'bileto_onepage_home'         => [__('Home page opens checkout', 'bileto'), __('Redirect the front page to checkout.', 'bileto')],
             'bileto_onepage_quiet_add'    => [__('No "added to cart" notice', 'bileto'), __('Adding a ticket shows no notice bar: the picker already shows the cart.', 'bileto')],
             'bileto_checkout_qty_names'   => [__('Quantity in the summary', 'bileto'), __('Order summary lines read "2 x Regular", without the quantity badge and the ticket points.', 'bileto')],
+            'bileto_checkout_summary_items' => [__('Tickets in the summary', 'bileto'), __('List the tickets in the order summary too. Off on the one-page checkout, where the ticket list already shows them.', 'bileto')],
+            'bileto_checkout_coupon_label' => [__('Coupon field label', 'bileto'), __('E.g. "Enter coupon code". Leave empty for the WooCommerce label.', 'bileto')],
             'bileto_checkout_coupon_open' => [__('Coupon field open', 'bileto'), __('Show the coupon field with its Apply button instead of a link that opens it.', 'bileto')],
             'bileto_checkout_labels'      => [__('Labels above fields', 'bileto'), __('Field labels stay above the input instead of inside it.', 'bileto')],
             'bileto_checkout_pay_total'   => [__('Total on the pay button', 'bileto'), __('The place-order button reads "Pay" and the order total.', 'bileto')],
@@ -172,6 +176,9 @@ final class OnePageCheckout implements HasHooks
     public function bodyClass(array $classes): array
     {
         if (is_checkout() && ! is_wc_endpoint_url()) {
+            if (self::on('bileto_onepage') && ! self::on('bileto_checkout_summary_items')) {
+                $classes[] = 'bileto-summary-no-items';
+            }
             foreach (['bileto_checkout_qty_names' => 'bileto-qty-names', 'bileto_checkout_coupon_open' => 'bileto-coupon-open', 'bileto_checkout_labels' => 'bileto-labels-above'] as $option => $class) {
                 if (self::on($option)) {
                     $classes[] = $class;
@@ -192,6 +199,7 @@ final class OnePageCheckout implements HasHooks
             'preselect' => self::on('bileto_onepage_preselect'),
             'qtyNames'  => self::on('bileto_checkout_qty_names'),
             'coupon'    => self::on('bileto_checkout_coupon_open'),
+            'couponLabel' => self::get('bileto_checkout_coupon_label'),
             /* translators: %s: order total */
             'payLabel'  => self::on('bileto_checkout_pay_total') ? __('Pay %s', 'bileto') : '',
         ]);

@@ -142,13 +142,27 @@
 		if ( text && text.textContent !== payLabel( text.textContent ) ) {
 			text.textContent = payLabel( text.textContent );
 		}
+		var couponLabel = opts.couponLabel && document.querySelector( '.wc-block-components-totals-coupon label' );
+		if ( couponLabel && couponLabel.textContent !== opts.couponLabel ) {
+			couponLabel.textContent = opts.couponLabel;
+		}
 		var toggle = opts.coupon && document.querySelector( '.wc-block-components-totals-coupon .wc-block-components-panel__button[aria-expanded="false"]' );
 		if ( toggle && ! toggle.dataset.biletoOpened ) {
 			toggle.dataset.biletoOpened = '1';
+			// Opening the panel focuses its input, which would scroll the page down to it on load.
+			var x = window.scrollX;
+			var y = window.scrollY;
 			toggle.click();
+			window.requestAnimationFrame( function () {
+				var input = document.querySelector( '.wc-block-components-totals-coupon input' );
+				if ( input && document.activeElement === input ) {
+					input.blur();
+				}
+				window.scrollTo( x, y );
+			} );
 		}
 	};
-	if ( opts.payLabel || opts.coupon ) {
+	if ( opts.payLabel || opts.coupon || opts.couponLabel ) {
 		new MutationObserver( sync ).observe( document.body, { childList: true, subtree: true, characterData: true } );
 		data.subscribe( sync, 'wc/store/cart' );
 	}
