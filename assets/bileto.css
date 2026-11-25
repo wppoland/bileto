@@ -80,3 +80,41 @@
 	.bileto-panel, .bileto-button, .bileto-notice { display: none; }
 	.bileto-ticket { background: none; }
 }
+
+/* [bileto_tickets]: ticket types with quantity steppers. */
+.bileto-picker__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.bileto-picker__row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 1rem 1.25rem;
+	background: var(--bileto-surface);
+	outline: 1px solid transparent;
+	transition: outline-color var(--bileto-dur-small) ease;
+}
+.bileto-picker__row.is-selected { outline-color: var(--bileto-accent); }
+.bileto-picker__info { display: grid; gap: 0.125rem; }
+.bileto-picker__name { font-weight: 600; }
+.bileto-picker__qty { display: flex; align-items: center; gap: 0.5rem; }
+.bileto-picker__step {
+	inline-size: 2.75rem;
+	block-size: 2.75rem;
+	font: inherit;
+	font-size: 1.25rem;
+	line-height: 1;
+	cursor: pointer;
+	color: inherit;
+	background: transparent;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+	transition: transform var(--bileto-dur-press) var(--bileto-ease-out), opacity var(--bileto-dur-small) ease;
+}
+.bileto-picker__step:active:not(:disabled) { transform: scale(0.94); }
+.bileto-picker__step:disabled { opacity: 0.35; cursor: not-allowed; }
+.bileto-picker__count { min-inline-size: 2ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+.bileto-picker__count.is-bumped { animation: bileto-bump var(--bileto-dur-small) var(--bileto-ease-out); }
+@keyframes bileto-bump { from { transform: scale(1.25); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+	.bileto-picker__step, .bileto-picker__count.is-bumped { transition: none; animation: none; }
+}
