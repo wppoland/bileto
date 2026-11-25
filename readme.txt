@@ -24,4 +24,9 @@ The B2C payments report lists every paid order of a private buyer (no NIP or EU 
 == Changelog ==
 
 = 0.1.0 =
-* Plugin skeleton.
+* Added: events and ticket products, with their own tables and a VAT rule by event country.
+* Added: tickets issued on payment, a ticket page with a QR code and transfer, a ticket e-mail and a check-in screen with camera scanning (jsQR fallback for Safari).
+* Added: seats follow partial refunds and quantity edits in the admin.
+* Added: admin list of an event's tickets with a CSV export.
+* Added: import of ticket orders from another shop (wp bileto import).
+* Added: B2C payments report under Events > B2C payments: paid orders of private buyers in a period, refunds, the Stripe transaction and payment intent, the Stripe fee and net, PLN totals and a CSV export. Filter bileto_buyer_is_business decides who counts as a business.
