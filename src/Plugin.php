@@ -11,6 +11,7 @@ use Bileto\Contract\HasHooks;
 use Bileto\Email\Emails;
 use Bileto\Event\EventPostType;
 use Bileto\Front\TicketPage;
+use Bileto\Front\TicketPicker;
 use Bileto\Import\OrderImporter;
 use Bileto\Install\Schema;
 use Bileto\Product\TicketProduct;
@@ -53,6 +54,7 @@ final class Plugin
             new TicketProduct(),
             new EventVat(),
             new TicketPage($tickets, $service),
+            new TicketPicker(),
             new Emails($tickets),
             new Checkin($tickets, $service),
             new TicketsScreen($tickets),
