@@ -44,5 +44,13 @@ bileto_test_assert($item->get_name() === 'Bileto test event - Bileto test ticket
 (new Bileto\Product\TicketProduct())->nameOrderLine($item, 'k', ['data' => $blind]);
 bileto_test_assert($item->get_name() === 'Bileto test event - Bileto test ticket', 'event name added once');
 
+$savedNote = get_option('bileto_onepage_note', '');
+update_option('bileto_onepage_note', "Secure payment.\n<a href=\"https://example.com/refunds\">Refund policy</a>");
+add_filter('woocommerce_is_checkout', '__return_true');
+$wrapped = (new Bileto\Front\OnePageCheckout())->wrapCheckout('<div class="wc-checkout"></div>');
+remove_filter('woocommerce_is_checkout', '__return_true');
+update_option('bileto_onepage_note', $savedNote);
+bileto_test_assert(str_contains($wrapped, '<ul class="bileto-onepage__note"><li>Secure payment.</li><li><a href="https://example.com/refunds">Refund policy</a></li></ul>'), 'note lines print under the form, links kept');
+
 bileto_test_cleanup();
 bileto_test_done();

@@ -162,7 +162,7 @@ final class OnePageCheckout implements HasHooks
         $lines  = array_filter(array_map('trim', explode("\n", self::get('bileto_onepage_note'))));
         $note   = $lines !== [] ? '<ul class="bileto-onepage__note"><li>' . implode('</li><li>', array_map('wp_kses_post', $lines)) . '</li></ul>' : '';
 
-        return '<div class="bileto-onepage bileto-onepage--' . esc_attr(self::get('bileto_onepage_layout')) . '"><aside class="bileto-onepage__offer">' . $offer . '</aside><div class="bileto-onepage__form">' . $html . '</div></div>';
+        return '<div class="bileto-onepage bileto-onepage--' . esc_attr(self::get('bileto_onepage_layout')) . '"><aside class="bileto-onepage__offer">' . $offer . '</aside><div class="bileto-onepage__form">' . $html . $note . '</div></div>';
     }
 
     /**
