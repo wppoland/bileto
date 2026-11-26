@@ -4,7 +4,7 @@ Tags: woocommerce, event tickets, tickets, check-in, qr code
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,7 +25,7 @@ One-page ticket checkout (WooCommerce > Settings > Products > Bileto): the event
 
 == Changelog ==
 
-= Unreleased =
+= 0.2.0 =
 * Changed: quantity buttons answer at once; the cart gets one request per ticket type after the clicks stop, instead of one per click with the buttons locked.
 * Fixed: an empty cart did not always get its preselected ticket when the cart had loaded before the script.
 * Fixed: CSS and JS versioned by file time, so browsers drop cached copies after an update.
